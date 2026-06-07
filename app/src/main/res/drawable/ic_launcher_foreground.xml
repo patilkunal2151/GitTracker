@@ -1,0 +1,48 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Git Tracker Logo -->
+    <group android:translateX="2" android:translateY="2">
+        <!-- Main Stem -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M44,70 L44,38"
+            android:strokeWidth="4"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round" />
+
+        <!-- Branch -->
+        <path
+            android:pathData="M44,56 C44,48 48,44 64,44"
+            android:strokeWidth="4"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- Nodes -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M44,74m-5,0a5,5 0 1,1 10,0a5,5 0 1,1 -10,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M44,34m-5,0a5,5 0 1,1 10,0a5,5 0 1,1 -10,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M68,44m-5,0a5,5 0 1,1 10,0a5,5 0 1,1 -10,0" />
+
+        <!-- Tracker "Pulse" around the branch node -->
+        <path
+            android:pathData="M68,44m-10,0a10,10 0 1,1 20,0a10,10 0 1,1 -20,0"
+            android:strokeWidth="1"
+            android:strokeAlpha="0.6"
+            android:strokeColor="#FFFFFF" />
+        <path
+            android:pathData="M68,44m-14,0a14,14 0 1,1 28,0a14,14 0 1,1 -28,0"
+            android:strokeWidth="0.5"
+            android:strokeAlpha="0.3"
+            android:strokeColor="#FFFFFF" />
+    </group>
+</vector>

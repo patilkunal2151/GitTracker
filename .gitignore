@@ -1,0 +1,38 @@
+# Built objects
+*.pyc
+*.obj
+*.o
+*.lib
+*.exp
+*.dll
+*.class
+*.dex
+
+# Gradle files
+.gradle
+/build
+/*/build
+
+# Android Studio
+*.iml
+.idea
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+
+# Local configuration files
+local.properties
+.kotlin
+.agent/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Log files
+*.log
+
+# Sensitive Data
+# Add any other sensitive file patterns here
