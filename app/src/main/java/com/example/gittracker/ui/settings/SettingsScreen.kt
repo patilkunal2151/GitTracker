@@ -157,7 +157,7 @@ fun SettingsScreen(
                                 label = stringResource(R.string.source_code),
                                 description = stringResource(R.string.visit_github),
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/kp694/GitTracker"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/patilkunal2151/GitTracker"))
                                     context.startActivity(intent)
                                 }
                             )
@@ -169,7 +169,7 @@ fun SettingsScreen(
                                 label = stringResource(R.string.report_issue),
                                 description = stringResource(R.string.report_issue),
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/kp694/GitTracker/issues"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/patilkunal2151/GitTracker/issues"))
                                     context.startActivity(intent)
                                 }
                             )
