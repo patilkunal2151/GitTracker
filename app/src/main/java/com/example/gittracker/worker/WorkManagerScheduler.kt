@@ -6,9 +6,11 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkInfo
 import com.example.gittracker.data.local.SettingsManager
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,20 +27,21 @@ class WorkManagerScheduler @Inject constructor(
     val nextCheckTime: Flow<Long?> = WorkManager.getInstance(context)
         .getWorkInfosForUniqueWorkFlow("UpdateCheckWork")
         .map { workInfos ->
-            workInfos.firstOrNull()?.nextScheduleTimeMillis
+            workInfos.find { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
+                ?.nextScheduleTimeMillis
         }
 
-    fun schedulePeriodicUpdateCheck(policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP) {
+    fun schedulePeriodicUpdateCheck(policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
             .build()
 
-        MainScope().launch {
+        CoroutineScope(Dispatchers.IO).launch {
             val hours = settingsManager.syncFrequency.first()
             val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(
                 hours.toLong(), TimeUnit.HOURS,
-                15, TimeUnit.MINUTES // Smaller flex to accommodate 1h frequency
+                15, TimeUnit.MINUTES
             ).setConstraints(constraints)
                 .build()
 

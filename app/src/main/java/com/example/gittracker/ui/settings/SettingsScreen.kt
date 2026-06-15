@@ -42,7 +42,7 @@ fun SettingsScreen(
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     onBack: () -> Unit,
-    snackbarHostState: SnackbarHostState
+    snackbarHost: @Composable () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -52,6 +52,7 @@ fun SettingsScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
+            snackbarHost = snackbarHost,
             topBar = {
                 TopAppBar(
                     title = { 

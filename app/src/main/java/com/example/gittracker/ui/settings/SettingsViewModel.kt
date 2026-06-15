@@ -75,7 +75,8 @@ class SettingsViewModel @Inject constructor(
     fun setSyncFrequency(hours: Int) {
         viewModelScope.launch {
             settingsManager.setSyncFrequency(hours)
-            scheduler.schedulePeriodicUpdateCheck(ExistingPeriodicWorkPolicy.UPDATE)
+            // Using REPLACE ensures the new interval takes effect immediately
+            scheduler.schedulePeriodicUpdateCheck(ExistingPeriodicWorkPolicy.REPLACE)
         }
     }
 

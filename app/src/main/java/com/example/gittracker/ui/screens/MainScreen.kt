@@ -50,7 +50,7 @@ import com.example.gittracker.ui.components.AddRepoDialog
 fun MainScreen(
     repositories: List<TrackedRepository>,
     isAdding: Boolean,
-    snackbarHostState: SnackbarHostState,
+    snackbarHost: @Composable () -> Unit,
     onRepoClick: (TrackedRepository) -> Unit,
     onAddRepo: (String) -> Unit,
     onDeleteRepo: (TrackedRepository) -> Unit,
@@ -99,6 +99,7 @@ fun MainScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
+            snackbarHost = snackbarHost,
             topBar = {
                 TopAppBar(
                     title = { 

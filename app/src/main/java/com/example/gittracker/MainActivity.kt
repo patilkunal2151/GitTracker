@@ -72,8 +72,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun StyledSnackbarHost(hostState: SnackbarHostState) {
-    SnackbarHost(hostState) { data ->
+fun StyledSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
+    SnackbarHost(hostState, modifier = modifier) { data ->
         Card(
             modifier = Modifier
                 .padding(16.dp)
@@ -191,9 +191,8 @@ fun GitTrackerAppWithPermissions(
             onExportClick = settingsViewModel::exportRepositories,
             onImportClick = { importLauncher.launch("application/json") },
             onBack = { showSettings = false },
-            snackbarHostState = settingsSnackbarHostState
+            snackbarHost = { StyledSnackbarHost(settingsSnackbarHostState) }
         )
-        StyledSnackbarHost(settingsSnackbarHostState)
         BackHandler {
             showSettings = false
         }
@@ -271,7 +270,7 @@ fun GitTrackerApp(
             MainScreen(
                 repositories = uiState,
                 isAdding = isAdding,
-                snackbarHostState = snackbarHostState,
+                snackbarHost = { StyledSnackbarHost(snackbarHostState) },
                 onRepoClick = { repo ->
                     viewModel.markAsRead(repo)
                     scope.launch {
@@ -284,7 +283,6 @@ fun GitTrackerApp(
                 onUpdateName = { repo, name -> viewModel.updateRepoName(repo, name) },
                 onSettingsClick = onSettingsClick
             )
-            StyledSnackbarHost(snackbarHostState)
         },
         detailPane = {
             val selectedId = navigator.currentDestination?.contentKey
