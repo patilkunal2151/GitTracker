@@ -31,18 +31,22 @@ class WorkManagerScheduler @Inject constructor(
                 ?.nextScheduleTimeMillis
         }
 
-    fun schedulePeriodicUpdateCheck(policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE) {
+    fun schedulePeriodicUpdateCheck(
+        policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
+        overrideHours: Int? = null
+    ) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
             .build()
 
         CoroutineScope(Dispatchers.IO).launch {
-            val hours = settingsManager.syncFrequency.first()
+            val hours = overrideHours ?: settingsManager.syncFrequency.first()
             val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(
                 hours.toLong(), TimeUnit.HOURS,
                 15, TimeUnit.MINUTES
             ).setConstraints(constraints)
+                .addTag("sync_worker")
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

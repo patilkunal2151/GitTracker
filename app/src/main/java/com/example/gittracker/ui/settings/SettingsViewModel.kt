@@ -52,12 +52,23 @@ class SettingsViewModel @Inject constructor(
         scheduler.nextCheckTime,
         ticker
     ) { frequency, nextTime, currentTime ->
-        val countdown = if (nextTime != null) {
+        val countdown = if (nextTime != null && nextTime > 0) {
             val diff = nextTime - currentTime
             if (diff > 0) {
-                val hours = (diff / (1000 * 60 * 60)) % 24
-                val minutes = (diff / (1000 * 60)) % 60
-                val seconds = (diff / 1000) % 60
+                // Limit countdown display to the selected frequency to avoid confusing
+                // values if WorkManager defers the job (e.g. due to low battery)
+                val maxDiff = frequency * 60 * 60 * 1000L
+                val displayDiff = if (diff > maxDiff + (16 * 60 * 1000L)) {
+                    // If diff is significantly larger than interval + flex, 
+                    // something is deferring it (like Battery Saver)
+                    maxDiff
+                } else {
+                    diff
+                }
+
+                val hours = (displayDiff / (1000 * 60 * 60))
+                val minutes = (displayDiff / (1000 * 60)) % 60
+                val seconds = (displayDiff / 1000) % 60
                 String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
             } else {
                 "Syncing..."
@@ -75,8 +86,8 @@ class SettingsViewModel @Inject constructor(
     fun setSyncFrequency(hours: Int) {
         viewModelScope.launch {
             settingsManager.setSyncFrequency(hours)
-            // Using REPLACE ensures the new interval takes effect immediately
-            scheduler.schedulePeriodicUpdateCheck(ExistingPeriodicWorkPolicy.REPLACE)
+            // Passing the hours directly to avoid race conditions with DataStore
+            scheduler.schedulePeriodicUpdateCheck(ExistingPeriodicWorkPolicy.REPLACE, overrideHours = hours)
         }
     }
 
