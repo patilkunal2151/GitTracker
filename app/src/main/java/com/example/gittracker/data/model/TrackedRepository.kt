@@ -12,5 +12,6 @@ data class TrackedRepository(
     val latestVersionTag: String,
     val hasNewUpdate: Boolean = false,
     val name: String = "",
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    val reachedEndOfReleases: Boolean = false
 )

@@ -38,7 +38,11 @@ class AppRepository @Inject constructor(
             throw IllegalStateException("Repository already tracked")
         }
         
-        val releases = try { apiService.getReleases(owner, repoName) } catch (_: Exception) { emptyList() }
+        val releases = try { 
+            apiService.getReleases(owner, repoName, perPage = 5, page = 1) 
+        } catch (_: Exception) { 
+            emptyList() 
+        }
 
         if (releases.isEmpty()) {
             throw IllegalStateException("No official releases found for this repository")
@@ -52,7 +56,8 @@ class AppRepository @Inject constructor(
             latestVersionTag = latestVersion,
             hasNewUpdate = false,
             name = name,
-            isPinned = isPinned
+            isPinned = isPinned,
+            reachedEndOfReleases = releases.size < 5
         )
         val repoId = dao.insertRepository(newRepo)
         
@@ -131,6 +136,50 @@ class AppRepository @Inject constructor(
         dao.insertRepository(repo)
         val updatedReleases = releases.map { it.copy(id = 0) }
         dao.insertReleases(updatedReleases)
+    }
+
+    suspend fun fetchMoreReleases(repoId: Long) {
+        val repo = dao.getRepositoryById(repoId) ?: return
+        if (repo.reachedEndOfReleases) return
+        
+        val currentReleasesCount = dao.getReleasesSync(repoId).size
+        val nextPage = (currentReleasesCount / 5) + 1
+        
+        try {
+            val newReleases = apiService.getReleases(repo.owner, repo.repoName, perPage = 5, page = nextPage)
+            
+            if (newReleases.size < 5) {
+                dao.updateRepository(repo.copy(reachedEndOfReleases = true))
+            }
+
+            if (newReleases.isNotEmpty()) {
+                val existingEntities = dao.getReleasesSync(repoId)
+                val existingTags = existingEntities.map { it.tagName }.toSet()
+                
+                val entitiesToAdd = newReleases
+                    .filter { it.tagName !in existingTags }
+                    .map { rel ->
+                        ReleaseEntity(
+                            repoId = repoId,
+                            tagName = rel.tagName,
+                            changelog = rel.body ?: "No changelog provided.",
+                            htmlUrl = rel.htmlUrl,
+                            createdAt = rel.publishedAt,
+                            assetsJson = gson.toJson(rel.assets)
+                        )
+                    }
+                if (entitiesToAdd.isNotEmpty()) {
+                    dao.insertReleases(entitiesToAdd)
+                }
+            }
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = e.response()?.errorBody()?.string()
+            android.util.Log.e("AppRepository", "GitHub API Error (403/Limit?): $errorBody", e)
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e("AppRepository", "Failed to fetch more releases", e)
+            throw e
+        }
     }
 
     suspend fun markAsRead(repo: TrackedRepository) {

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
-    onSyncFrequencyChange: (Int) -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     onBack: () -> Unit,
@@ -87,11 +86,10 @@ fun SettingsScreen(
                 item {
                     SettingsCard {
                         Column {
-                            SettingsDropdown(
+                            SettingsItem(
                                 label = stringResource(R.string.sync_frequency),
-                                options = listOf(1, 2, 4, 8, 12, 24).map { if (it == 1) "1 hour" else "$it hours" },
-                                selected = if (state.syncFrequency == 1) "1 hour" else "${state.syncFrequency} hours",
-                                onSelect = { onSyncFrequencyChange(it.substringBefore(" ").toInt()) }
+                                description = "Automatically checks for updates every hour.",
+                                onClick = { }
                             )
                             state.nextSyncCountdown?.let { countdown ->
                                 HorizontalDivider(
@@ -347,53 +345,3 @@ fun SettingsHeader(title: String) {
     )
 }
 
-@Composable
-fun SettingsDropdown(
-    label: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { expanded = true }
-            .padding(20.dp)
-    ) {
-        Column {
-            Text(
-                text = label, 
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = selected, 
-                style = MaterialTheme.typography.bodySmall, 
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        DropdownMenu(
-            expanded = expanded, 
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onSelect(option)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}

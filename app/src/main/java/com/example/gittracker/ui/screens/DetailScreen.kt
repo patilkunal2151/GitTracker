@@ -42,7 +42,9 @@ import java.util.*
 fun DetailScreen(
     repo: TrackedRepository?,
     releases: List<ReleaseEntity>,
+    isLoadingMore: Boolean,
     onBack: () -> Unit,
+    onLoadMore: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -154,6 +156,36 @@ fun DetailScreen(
                         }
                         items(releases, key = { it.id }) { release ->
                             ReleaseItem(release = release)
+                        }
+                        
+                        if (!repo.reachedEndOfReleases) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isLoadingMore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 3.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else {
+                                        TextButton(
+                                            onClick = { repo.id.let { onLoadMore(it) } },
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text(
+                                                text = "Load Previous Releases",
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 

@@ -78,7 +78,7 @@ fun StyledSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifi
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).copy(alpha = 0.95f)
             ),
@@ -187,7 +187,6 @@ fun GitTrackerAppWithPermissions(
         val state by settingsViewModel.uiState.collectAsState()
         SettingsScreen(
             state = state,
-            onSyncFrequencyChange = settingsViewModel::setSyncFrequency,
             onExportClick = settingsViewModel::exportRepositories,
             onImportClick = { importLauncher.launch("application/json") },
             onBack = { showSettings = false },
@@ -287,6 +286,7 @@ fun GitTrackerApp(
         detailPane = {
             val selectedId = navigator.currentDestination?.contentKey
             val selectedRepo = uiState.find { it.id == selectedId }
+            val isLoadingMore by viewModel.isLoadingMore.collectAsState()
 
             val releases by (if (selectedId != null) {
                 viewModel.getReleases(selectedId)
@@ -297,11 +297,13 @@ fun GitTrackerApp(
             DetailScreen(
                 repo = selectedRepo,
                 releases = releases,
+                isLoadingMore = isLoadingMore,
                 onBack = {
                     scope.launch {
                         navigator.navigateBack()
                     }
-                }
+                },
+                onLoadMore = { id -> viewModel.loadMoreReleases(id) }
             )
         }
     )

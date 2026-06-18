@@ -12,7 +12,8 @@ import dagger.assisted.AssistedInject
 class UpdateCheckWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val repository: AppRepository
+    private val repository: AppRepository,
+    private val scheduler: WorkManagerScheduler
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -20,6 +21,10 @@ class UpdateCheckWorker @AssistedInject constructor(
         return try {
             repository.checkForUpdates()
             android.util.Log.d("UpdateCheckWorker", "Work finished successfully")
+            
+            // Schedule the next check
+            scheduler.scheduleUpdateCheck()
+
             Result.success()
         } catch (e: Exception) {
             android.util.Log.e("UpdateCheckWorker", "Work failed", e)

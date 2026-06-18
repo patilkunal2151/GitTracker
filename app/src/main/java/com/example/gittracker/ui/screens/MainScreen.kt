@@ -64,29 +64,32 @@ fun MainScreen(
     val isSelectionMode = selectedIds.isNotEmpty()
     
     val listState = rememberLazyListState()
-    var previousRepoIds by remember { mutableStateOf(repositories.map { it.id }.toSet()) }
+    var previousRepoIds by remember { mutableStateOf<Set<Long>?>(null) }
     val pinnedRepos = remember(repositories) { repositories.filter { it.isPinned } }
     val otherRepos = remember(repositories) { repositories.filter { !it.isPinned } }
     
     LaunchedEffect(repositories) {
         val currentIds = repositories.map { it.id }.toSet()
-        val newId = (currentIds - previousRepoIds).firstOrNull()
+        val prevIds = previousRepoIds
         
-        if (newId != null) {
-            val pinnedIndex = pinnedRepos.indexOfFirst { it.id == newId }
-            if (pinnedIndex != -1) {
-                // It's in pinned. Index 0 is header, so scroll to pinnedIndex + 1
-                listState.animateScrollToItem(pinnedIndex + 1)
-            } else {
-                val otherIndex = otherRepos.indexOfFirst { it.id == newId }
-                if (otherIndex != -1) {
-                    val baseIndex = if (pinnedRepos.isNotEmpty()) {
-                        1 + pinnedRepos.size + 1 // Pinned Header + Pinned Items + Repositories Header
-                    } else {
-                        0 // No headers before other repos if pinned is empty (wait, is there a header if pinned is empty?)
+        if (prevIds != null && prevIds.isNotEmpty() && currentIds.size > prevIds.size) {
+            val newId = (currentIds - prevIds).firstOrNull()
+            
+            if (newId != null) {
+                val pinnedIndex = pinnedRepos.indexOfFirst { it.id == newId }
+                if (pinnedIndex != -1) {
+                    // It's in pinned. Index 0 is header, so scroll to pinnedIndex + 1
+                    listState.animateScrollToItem(pinnedIndex + 1)
+                } else {
+                    val otherIndex = otherRepos.indexOfFirst { it.id == newId }
+                    if (otherIndex != -1) {
+                        val baseIndex = if (pinnedRepos.isNotEmpty()) {
+                            1 + pinnedRepos.size + 1 // Pinned Header + Pinned Items + Repositories Header
+                        } else {
+                            0
+                        }
+                        listState.animateScrollToItem(baseIndex + otherIndex)
                     }
-                    // Looking at the code below, if pinnedRepos is empty, it just shows otherRepos items directly (no header)
-                    listState.animateScrollToItem(baseIndex + otherIndex)
                 }
             }
         }

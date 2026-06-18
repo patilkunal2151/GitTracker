@@ -21,7 +21,7 @@ class SettingsManager @Inject constructor(
     private val syncFrequencyKey = intPreferencesKey("sync_frequency")
 
     val syncFrequency: Flow<Int> = context.dataStore.data.map { preferences ->
-        preferences[syncFrequencyKey] ?: 8 // Default 8 hours
+        preferences[syncFrequencyKey] ?: 1 // Default 1 hour
     }
 
     suspend fun setSyncFrequency(hours: Int) {

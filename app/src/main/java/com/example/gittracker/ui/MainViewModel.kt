@@ -26,6 +26,9 @@ class MainViewModel @Inject constructor(
     private val _isAdding = MutableStateFlow(false)
     val isAdding = _isAdding.asStateFlow()
 
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore = _isLoadingMore.asStateFlow()
+
     private val _errorEvent = Channel<String>(Channel.BUFFERED)
     val errorEvent: Flow<String> = _errorEvent.receiveAsFlow()
 
@@ -51,6 +54,25 @@ class MainViewModel @Inject constructor(
 
     fun getReleases(repoId: Long): Flow<List<ReleaseEntity>> = 
         repository.getReleasesForRepository(repoId)
+
+    fun loadMoreReleases(repoId: Long) {
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                repository.fetchMoreReleases(repoId)
+            } catch (e: retrofit2.HttpException) {
+                if (e.code() == 403) {
+                    _errorEvent.send("GitHub Rate Limit Reached. Try again later.")
+                } else {
+                    _errorEvent.send("Server error: ${e.code()}")
+                }
+            } catch (e: Exception) {
+                _errorEvent.send("Failed to load more releases")
+            } finally {
+                _isLoadingMore.value = false
+            }
+        }
+    }
 
     fun togglePin(repo: TrackedRepository) {
         viewModelScope.launch {
