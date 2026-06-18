@@ -32,7 +32,7 @@ object NetworkModule {
     fun provideCommonHeadersInterceptor(): Interceptor {
         return Interceptor { chain ->
             val request = chain.request().newBuilder()
-                .header("User-Agent", "UpdateTrackerApp/1.1.0")
+                .header("User-Agent", "UpdateTrackerApp/1.2.0")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
             chain.proceed(request)
