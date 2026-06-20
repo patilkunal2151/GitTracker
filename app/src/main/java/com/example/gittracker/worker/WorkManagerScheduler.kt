@@ -2,9 +2,9 @@ package com.example.gittracker.worker
 
 import android.content.Context
 import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkInfo
 import com.example.gittracker.data.local.SettingsManager
@@ -32,7 +32,7 @@ class WorkManagerScheduler @Inject constructor(
         }
 
     fun scheduleUpdateCheck(
-        policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
+        policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
         overrideHours: Int? = null
     ) {
         val constraints = Constraints.Builder()
@@ -42,13 +42,14 @@ class WorkManagerScheduler @Inject constructor(
 
         CoroutineScope(Dispatchers.IO).launch {
             val hours = overrideHours ?: settingsManager.syncFrequency.first()
-            val workRequest = OneTimeWorkRequestBuilder<UpdateCheckWorker>()
+            val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(
+                hours.toLong(), TimeUnit.HOURS
+            )
                 .setConstraints(constraints)
-                .setInitialDelay(hours.toLong(), TimeUnit.HOURS)
                 .addTag("sync_worker")
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniqueWork(
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "UpdateCheckWork",
                 policy,
                 workRequest

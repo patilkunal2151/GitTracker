@@ -2,7 +2,7 @@ package com.example.gittracker.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.ExistingWorkPolicy
+import androidx.work.ExistingPeriodicWorkPolicy
 import com.example.gittracker.data.local.SettingsManager
 import com.example.gittracker.data.repository.AppRepository
 import com.example.gittracker.worker.WorkManagerScheduler
@@ -52,7 +52,7 @@ class SettingsViewModel @Inject constructor(
         scheduler.nextCheckTime,
         ticker
     ) { frequency, nextTime, currentTime ->
-        val countdown = if (nextTime != null && nextTime > 0) {
+        val countdown = if (nextTime != null && nextTime > 0 && nextTime < Long.MAX_VALUE) {
             val diff = nextTime - currentTime
             if (diff > 0) {
                 val hours = (diff / (1000 * 60 * 60))
@@ -62,6 +62,8 @@ class SettingsViewModel @Inject constructor(
             } else {
                 "Syncing..."
             }
+        } else if (nextTime == Long.MAX_VALUE) {
+            "Calculating..."
         } else {
             null
         }
@@ -75,8 +77,8 @@ class SettingsViewModel @Inject constructor(
     fun setSyncFrequency(hours: Int) {
         viewModelScope.launch {
             settingsManager.setSyncFrequency(hours)
-            // Passing the hours directly to avoid race conditions with DataStore
-            scheduler.scheduleUpdateCheck(ExistingWorkPolicy.REPLACE, overrideHours = hours)
+            // Use CANCEL_AND_REENQUEUE to restart the timer with the new frequency immediately
+            scheduler.scheduleUpdateCheck(ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, overrideHours = hours)
         }
     }
 
