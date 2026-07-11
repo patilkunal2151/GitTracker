@@ -21,9 +21,11 @@ data class ReleaseEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val repoId: Long,
+    val remoteId: Long = 0,
     val tagName: String,
     val changelog: String,
     val htmlUrl: String,
     val createdAt: String,
+    val isPrerelease: Boolean = false,
     val assetsJson: String = "[]"
 )

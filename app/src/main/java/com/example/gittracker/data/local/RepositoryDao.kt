@@ -15,6 +15,9 @@ interface RepositoryDao {
     @Query("SELECT * FROM tracked_repositories ORDER BY id DESC")
     fun getAllRepositories(): Flow<List<TrackedRepository>>
 
+    @Query("SELECT * FROM tracked_repositories ORDER BY id DESC")
+    suspend fun getAllRepositoriesSync(): List<TrackedRepository>
+
     @Query("SELECT * FROM tracked_repositories WHERE id = :id")
     suspend fun getRepositoryById(id: Long): TrackedRepository?
 

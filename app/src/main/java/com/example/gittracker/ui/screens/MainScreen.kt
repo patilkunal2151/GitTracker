@@ -65,26 +65,29 @@ fun MainScreen(
     
     val listState = rememberLazyListState()
     var previousRepoIds by remember { mutableStateOf<Set<Long>?>(null) }
+    var previousPinnedIds by remember { mutableStateOf<Set<Long>?>(null) }
     val pinnedRepos = remember(repositories) { repositories.filter { it.isPinned } }
     val otherRepos = remember(repositories) { repositories.filter { !it.isPinned } }
     
     LaunchedEffect(repositories) {
         val currentIds = repositories.map { it.id }.toSet()
+        val currentPinnedIds = repositories.filter { it.isPinned }.map { it.id }.toSet()
         val prevIds = previousRepoIds
+        val prevPinnedIds = previousPinnedIds
         
+        // Handle new repository addition
         if (prevIds != null && prevIds.isNotEmpty() && currentIds.size > prevIds.size) {
             val newId = (currentIds - prevIds).firstOrNull()
             
             if (newId != null) {
                 val pinnedIndex = pinnedRepos.indexOfFirst { it.id == newId }
                 if (pinnedIndex != -1) {
-                    // It's in pinned. Index 0 is header, so scroll to pinnedIndex + 1
                     listState.animateScrollToItem(pinnedIndex + 1)
                 } else {
                     val otherIndex = otherRepos.indexOfFirst { it.id == newId }
                     if (otherIndex != -1) {
                         val baseIndex = if (pinnedRepos.isNotEmpty()) {
-                            1 + pinnedRepos.size + 1 // Pinned Header + Pinned Items + Repositories Header
+                            1 + pinnedRepos.size + 1 
                         } else {
                             0
                         }
@@ -92,8 +95,15 @@ fun MainScreen(
                     }
                 }
             }
+        } 
+        // Handle repository being pinned
+        else if (prevPinnedIds != null && currentPinnedIds.size > prevPinnedIds.size) {
+            // A repo was just pinned, scroll to the top to show the Pinned section
+            listState.animateScrollToItem(0)
         }
+
         previousRepoIds = currentIds
+        previousPinnedIds = currentPinnedIds
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -195,14 +205,52 @@ fun MainScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (pinnedRepos.isNotEmpty()) {
-                            item(key = "pinned_header") {
-                                SectionHeader(
-                                    title = "Pinned",
-                                    modifier = Modifier.animateItem()
-                                )
+                            if (pinnedRepos.isNotEmpty()) {
+                                item(key = "pinned_header") {
+                                    SectionHeader(
+                                        title = "Pinned",
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                                items(pinnedRepos, key = { it.id }) { repo ->
+                                    RepoItem(
+                                        modifier = Modifier.animateItem(),
+                                        repo = repo,
+                                        isSelected = repo.id in selectedIds,
+                                        onToggleSelection = {
+                                            selectedIds = if (repo.id in selectedIds) {
+                                                selectedIds - repo.id
+                                            } else {
+                                                selectedIds + repo.id
+                                            }
+                                        },
+                                        onClick = { 
+                                            if (isSelectionMode) {
+                                                selectedIds = if (repo.id in selectedIds) {
+                                                    selectedIds - repo.id
+                                                } else {
+                                                    selectedIds + repo.id
+                                                }
+                                            } else {
+                                                onRepoClick(repo)
+                                            }
+                                        },
+                                        onDeleteRepo = onDeleteRepo,
+                                        onTogglePin = onTogglePin,
+                                        onUpdateName = onUpdateName
+                                    )
+                                }
+                                if (otherRepos.isNotEmpty()) {
+                                    item(key = "all_header") {
+                                        SectionHeader(
+                                            title = "Repositories",
+                                            modifier = Modifier.animateItem()
+                                        )
+                                    }
+                                }
                             }
-                            items(pinnedRepos, key = { it.id }) { repo ->
+
+                            items(otherRepos, key = { it.id }) { repo ->
                                 RepoItem(
                                     modifier = Modifier.animateItem(),
                                     repo = repo,
@@ -230,43 +278,6 @@ fun MainScreen(
                                     onUpdateName = onUpdateName
                                 )
                             }
-                            if (otherRepos.isNotEmpty()) {
-                                item(key = "all_header") {
-                                    SectionHeader(
-                                        title = "Repositories",
-                                        modifier = Modifier.animateItem()
-                                    )
-                                }
-                            }
-                        }
-
-                        items(otherRepos, key = { it.id }) { repo ->
-                            RepoItem(
-                                modifier = Modifier.animateItem(),
-                                repo = repo,
-                                isSelected = repo.id in selectedIds,
-                                onToggleSelection = {
-                                    selectedIds = if (repo.id in selectedIds) {
-                                        selectedIds - repo.id
-                                    } else {
-                                        selectedIds + repo.id
-                                    }
-                                },
-                                onClick = { 
-                                    if (isSelectionMode) {
-                                        selectedIds = if (repo.id in selectedIds) {
-                                            selectedIds - repo.id
-                                        } else {
-                                            selectedIds + repo.id
-                                        }
-                                    } else {
-                                        onRepoClick(repo)
-                                    }
-                                },
-                                onDeleteRepo = onDeleteRepo,
-                                onTogglePin = onTogglePin,
-                                onUpdateName = onUpdateName
-                            )
                         }
                     }
                 }
@@ -283,7 +294,7 @@ fun MainScreen(
             }
         }
     }
-}
+
 
 @Composable
 fun GradientBlurBackground() {

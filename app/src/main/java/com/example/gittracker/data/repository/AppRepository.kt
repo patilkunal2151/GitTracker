@@ -10,8 +10,10 @@ import com.example.gittracker.util.NotificationHelper
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.minutes
 
 @Singleton
 class AppRepository @Inject constructor(
@@ -39,35 +41,40 @@ class AppRepository @Inject constructor(
         }
         
         val releases = try { 
-            apiService.getReleases(owner, repoName, perPage = 5, page = 1) 
+            apiService.getReleases(owner, repoName, perPage = 10, page = 1) 
         } catch (_: Exception) { 
             emptyList() 
         }
 
         if (releases.isEmpty()) {
-            throw IllegalStateException("No official releases found for this repository")
+            throw IllegalStateException("No releases found for this repository")
         }
 
-        val latestVersion = releases.first().tagName
+        val latestRelease = releases.first()
+        val latestVersion = latestRelease.tagName
+        val latestId = latestRelease.id
         
         val newRepo = TrackedRepository(
             owner = owner,
             repoName = repoName,
             latestVersionTag = latestVersion,
+            latestReleaseId = latestId,
             hasNewUpdate = false,
             name = name,
             isPinned = isPinned,
-            reachedEndOfReleases = releases.size < 5
+            reachedEndOfReleases = releases.size < 10
         )
         val repoId = dao.insertRepository(newRepo)
         
-        val releaseEntities = releases.map { rel ->
+        val releaseEntities = releases.take(5).map { rel ->
             ReleaseEntity(
                 repoId = repoId,
+                remoteId = rel.id,
                 tagName = rel.tagName,
                 changelog = rel.body ?: "No changelog provided.",
                 htmlUrl = rel.htmlUrl,
                 createdAt = rel.publishedAt,
+                isPrerelease = rel.isPrerelease,
                 assetsJson = gson.toJson(rel.assets)
             )
         }
@@ -77,52 +84,63 @@ class AppRepository @Inject constructor(
 
     suspend fun checkForUpdates() {
         android.util.Log.d("AppRepository", "Checking for updates...")
-        val repos = dao.getAllRepositories().first()
-        for (repo in repos) {
-            try {
-                android.util.Log.d("AppRepository", "Checking repo: ${repo.owner}/${repo.repoName}")
-                val releases = try { apiService.getReleases(repo.owner, repo.repoName) } catch (e: Exception) { 
-                    android.util.Log.e("AppRepository", "Failed to fetch releases for ${repo.repoName}", e)
-                    emptyList() 
-                }
-                val latestVersion = releases.firstOrNull()?.tagName ?: ""
-                
-                if (latestVersion != repo.latestVersionTag && latestVersion.isNotEmpty()) {
-                    android.util.Log.d("AppRepository", "New version found for ${repo.repoName}: $latestVersion (old: ${repo.latestVersionTag})")
-                    
-                    val existingEntities = dao.getReleasesForRepository(repo.id).first()
-                    val existingReleases = existingEntities.map { it.tagName }.toSet()
-
-                    val newReleases = releases.filter { it.tagName !in existingReleases }
-                        .map { rel ->
-                            ReleaseEntity(
-                                repoId = repo.id,
-                                tagName = rel.tagName,
-                                changelog = rel.body ?: "No changelog provided.",
-                                htmlUrl = rel.htmlUrl,
-                                createdAt = rel.publishedAt,
-                                assetsJson = gson.toJson(rel.assets)
-                            )
-                        }
-                    
-                    if (newReleases.isNotEmpty()) {
-                        dao.insertReleases(newReleases)
-                        val updatedRepo = repo.copy(
-                            latestVersionTag = latestVersion,
-                            hasNewUpdate = true
-                        )
-                        dao.updateRepository(updatedRepo)
-                        notificationHelper.showUpdateNotification(updatedRepo)
-                    } else {
-                        // Tag changed but no new releases found in the list? 
-                        // Update tag anyway to avoid infinite loop of checks
-                        dao.updateRepository(repo.copy(latestVersionTag = latestVersion))
+        // Use withTimeout to prevent the entire worker from hanging
+        withTimeoutOrNull(10.minutes) {
+            val repos = dao.getAllRepositoriesSync()
+            for (repo in repos) {
+                try {
+                    android.util.Log.d("AppRepository", "Checking repo: ${repo.owner}/${repo.repoName}")
+                    val releases = try { 
+                        apiService.getReleases(repo.owner, repo.repoName) 
+                    } catch (e: Exception) { 
+                        android.util.Log.e("AppRepository", "Failed to fetch releases for ${repo.repoName}", e)
+                        emptyList() 
                     }
+
+                    val latestRelease = releases.firstOrNull()
+                    val latestVersion = latestRelease?.tagName ?: ""
+                    val latestId = latestRelease?.id ?: 0L
+                    
+                    if (latestId != repo.latestReleaseId && latestId != 0L) {
+                        android.util.Log.d("AppRepository", "New version found for ${repo.repoName}: $latestVersion (ID: $latestId)")
+                        
+                        val existingEntities = dao.getReleasesSync(repo.id)
+                        val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
+
+                        val newReleases = releases.filter { it.id !in existingRemoteIds }
+                            .map { rel ->
+                                ReleaseEntity(
+                                    repoId = repo.id,
+                                    remoteId = rel.id,
+                                    tagName = rel.tagName,
+                                    changelog = rel.body ?: "No changelog provided.",
+                                    htmlUrl = rel.htmlUrl,
+                                    createdAt = rel.publishedAt,
+                                    isPrerelease = rel.isPrerelease,
+                                    assetsJson = gson.toJson(rel.assets)
+                                )
+                            }
+                        
+                        if (newReleases.isNotEmpty()) {
+                            dao.insertReleases(newReleases)
+                            val updatedRepo = repo.copy(
+                                latestVersionTag = latestVersion,
+                                latestReleaseId = latestId,
+                                hasNewUpdate = true
+                            )
+                            dao.updateRepository(updatedRepo)
+                            notificationHelper.showUpdateNotification(updatedRepo)
+                        } else {
+                            // Tag changed but no new releases found in the list? 
+                            // Update tag anyway to avoid infinite loop of checks
+                            dao.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AppRepository", "Error during update check for ${repo.repoName}", e)
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("AppRepository", "Error during update check for ${repo.repoName}", e)
             }
-        }
+        } ?: android.util.Log.w("AppRepository", "Update check timed out after 10 minutes")
     }
 
     suspend fun deleteRepository(repo: TrackedRepository) {
@@ -146,25 +164,27 @@ class AppRepository @Inject constructor(
         val nextPage = (currentReleasesCount / 5) + 1
         
         try {
-            val newReleases = apiService.getReleases(repo.owner, repo.repoName, perPage = 5, page = nextPage)
+            val newReleases = apiService.getReleases(repo.owner, repo.repoName, perPage = 10, page = nextPage)
             
-            if (newReleases.size < 5) {
+            if (newReleases.size < 10) {
                 dao.updateRepository(repo.copy(reachedEndOfReleases = true))
             }
 
             if (newReleases.isNotEmpty()) {
                 val existingEntities = dao.getReleasesSync(repoId)
-                val existingTags = existingEntities.map { it.tagName }.toSet()
+                val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
                 
                 val entitiesToAdd = newReleases
-                    .filter { it.tagName !in existingTags }
+                    .filter { it.id !in existingRemoteIds }
                     .map { rel ->
                         ReleaseEntity(
                             repoId = repoId,
+                            remoteId = rel.id,
                             tagName = rel.tagName,
                             changelog = rel.body ?: "No changelog provided.",
                             htmlUrl = rel.htmlUrl,
                             createdAt = rel.publishedAt,
+                            isPrerelease = rel.isPrerelease,
                             assetsJson = gson.toJson(rel.assets)
                         )
                     }

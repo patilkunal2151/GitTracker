@@ -19,16 +19,21 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class WorkStatus(
+    val nextTime: Long,
+    val state: WorkInfo.State
+)
+
 @Singleton
 class WorkManagerScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsManager: SettingsManager
 ) {
-    val nextCheckTime: Flow<Long?> = WorkManager.getInstance(context)
+    val workStatus: Flow<WorkStatus?> = WorkManager.getInstance(context)
         .getWorkInfosForUniqueWorkFlow("UpdateCheckWork")
         .map { workInfos ->
             workInfos.find { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
-                ?.nextScheduleTimeMillis
+                ?.let { WorkStatus(it.nextScheduleTimeMillis, it.state) }
         }
 
     fun scheduleUpdateCheck(

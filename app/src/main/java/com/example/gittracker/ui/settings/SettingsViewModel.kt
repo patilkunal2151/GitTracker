@@ -3,6 +3,7 @@ package com.example.gittracker.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.WorkInfo
 import com.example.gittracker.data.local.SettingsManager
 import com.example.gittracker.data.repository.AppRepository
 import com.example.gittracker.worker.WorkManagerScheduler
@@ -23,7 +24,8 @@ import kotlin.time.Duration.Companion.seconds
 
 data class SettingsUiState(
     val syncFrequency: Int = 8,
-    val nextSyncCountdown: String? = null
+    val nextSyncCountdown: String? = null,
+    val isSyncing: Boolean = false
 )
 
 @HiltViewModel
@@ -49,25 +51,35 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsManager.syncFrequency,
-        scheduler.nextCheckTime,
+        scheduler.workStatus,
         ticker
-    ) { frequency, nextTime, currentTime ->
-        val countdown = if (nextTime != null && nextTime > 0 && nextTime < Long.MAX_VALUE) {
-            val diff = nextTime - currentTime
-            if (diff > 0) {
-                val hours = (diff / (1000 * 60 * 60))
-                val minutes = (diff / (1000 * 60)) % 60
-                val seconds = (diff / 1000) % 60
-                String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
-            } else {
+    ) { frequency, status, currentTime ->
+        var isSyncing = false
+        val countdown = if (status != null) {
+            val nextTime = status.nextTime
+            val state = status.state
+            
+            if (state == WorkInfo.State.RUNNING) {
+                isSyncing = true
                 "Syncing..."
+            } else if (nextTime == Long.MAX_VALUE) {
+                "Calculating..."
+            } else {
+                val diff = nextTime - currentTime
+                if (diff > 0) {
+                    val hours = (diff / (1000 * 60 * 60))
+                    val minutes = (diff / (1000 * 60)) % 60
+                    val seconds = (diff / 1000) % 60
+                    String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+                } else {
+                    // Time passed but hasn't started RUNNING yet (system delay)
+                    "Pending..."
+                }
             }
-        } else if (nextTime == Long.MAX_VALUE) {
-            "Calculating..."
         } else {
             null
         }
-        SettingsUiState(frequency, countdown)
+        SettingsUiState(frequency, countdown, isSyncing)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

@@ -10,6 +10,7 @@ data class TrackedRepository(
     val owner: String,
     val repoName: String,
     val latestVersionTag: String,
+    val latestReleaseId: Long = 0,
     val hasNewUpdate: Boolean = false,
     val name: String = "",
     val isPinned: Boolean = false,

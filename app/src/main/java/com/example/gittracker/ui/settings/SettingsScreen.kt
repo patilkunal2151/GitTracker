@@ -91,31 +91,29 @@ fun SettingsScreen(
                                 description = "Automatically checks for updates every hour.",
                                 onClick = { }
                             )
-                            state.nextSyncCountdown?.let { countdown ->
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 24.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Next sync in:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Next sync in:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = countdown,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                    )
-                                }
+                                Text(
+                                    text = state.nextSyncCountdown ?: "Calculating...",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
                             }
                         }
                     }
