@@ -5,19 +5,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkInfo
 import com.example.gittracker.data.local.SettingsManager
-import com.example.gittracker.data.repository.AppRepository
+import com.example.gittracker.domain.usecase.ExportRepositoriesUseCase
+import com.example.gittracker.domain.usecase.ImportRepositoriesUseCase
 import com.example.gittracker.worker.WorkManagerScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
@@ -32,7 +27,8 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val scheduler: WorkManagerScheduler,
-    private val repository: AppRepository
+    private val exportRepositoriesUseCase: ExportRepositoriesUseCase,
+    private val importRepositoriesUseCase: ImportRepositoriesUseCase
 ) : ViewModel() {
 
     private val _exportEvent = Channel<String>(Channel.BUFFERED)
@@ -41,7 +37,6 @@ class SettingsViewModel @Inject constructor(
     private val _messageEvent = Channel<String>(Channel.BUFFERED)
     val messageEvent: Flow<String> = _messageEvent.receiveAsFlow()
 
-    // Ticker flow that emits every second
     private val ticker = flow {
         while (true) {
             emit(System.currentTimeMillis())
@@ -72,7 +67,6 @@ class SettingsViewModel @Inject constructor(
                     val seconds = (diff / 1000) % 60
                     String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
                 } else {
-                    // Time passed but hasn't started RUNNING yet (system delay)
                     "Pending..."
                 }
             }
@@ -89,14 +83,13 @@ class SettingsViewModel @Inject constructor(
     fun setSyncFrequency(hours: Int) {
         viewModelScope.launch {
             settingsManager.setSyncFrequency(hours)
-            // Use CANCEL_AND_REENQUEUE to restart the timer with the new frequency immediately
             scheduler.scheduleUpdateCheck(ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, overrideHours = hours)
         }
     }
 
     fun exportRepositories() {
         viewModelScope.launch {
-            val json = repository.exportRepositories()
+            val json = exportRepositoriesUseCase()
             _exportEvent.send(json)
         }
     }
@@ -104,7 +97,7 @@ class SettingsViewModel @Inject constructor(
     fun importRepositories(json: String) {
         viewModelScope.launch {
             try {
-                repository.importRepositories(json)
+                importRepositoriesUseCase(json)
                 _messageEvent.send("Import completed successfully")
             } catch (e: Exception) {
                 _messageEvent.send("Failed to import repositories")

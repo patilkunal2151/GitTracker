@@ -10,7 +10,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.gittracker.MainActivity
 import com.example.gittracker.R
-import com.example.gittracker.data.model.TrackedRepository
+import com.example.gittracker.domain.model.TrackedRepo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,7 +46,7 @@ class NotificationHelper @Inject constructor(
         }
     }
 
-    fun showUpdateNotification(repo: TrackedRepository) {
+    fun showUpdateNotification(repo: TrackedRepo) {
         Log.d("NotificationHelper", "Showing notification for ${repo.repoName}")
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

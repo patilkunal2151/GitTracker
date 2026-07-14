@@ -2,25 +2,26 @@ package com.example.gittracker.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gittracker.data.model.ReleaseEntity
-import com.example.gittracker.data.model.TrackedRepository
-import com.example.gittracker.data.repository.AppRepository
+import com.example.gittracker.domain.model.Release
+import com.example.gittracker.domain.model.TrackedRepo
+import com.example.gittracker.domain.usecase.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val repository: AppRepository
+    getTrackedRepositoriesUseCase: GetTrackedRepositoriesUseCase,
+    private val addRepositoryUseCase: AddRepositoryUseCase,
+    private val deleteRepositoryUseCase: DeleteRepositoryUseCase,
+    private val togglePinUseCase: TogglePinUseCase,
+    private val markAsReadUseCase: MarkAsReadUseCase,
+    private val updateRepositoryNameUseCase: UpdateRepositoryNameUseCase,
+    private val restoreRepositoryUseCase: RestoreRepositoryUseCase,
+    private val fetchMoreReleasesUseCase: FetchMoreReleasesUseCase,
+    private val getReleasesUseCase: GetReleasesUseCase
 ) : ViewModel() {
 
     private val _isAdding = MutableStateFlow(false)
@@ -35,31 +36,23 @@ class MainViewModel @Inject constructor(
     private val _successEvent = Channel<String>(Channel.BUFFERED)
     val successEvent: Flow<String> = _successEvent.receiveAsFlow()
 
-    private val _undoDeleteEvent = Channel<Pair<TrackedRepository, List<ReleaseEntity>>>(Channel.BUFFERED)
-    val undoDeleteEvent: Flow<Pair<TrackedRepository, List<ReleaseEntity>>> = _undoDeleteEvent.receiveAsFlow()
+    private val _undoDeleteEvent = Channel<Pair<TrackedRepo, List<Release>>>(Channel.BUFFERED)
+    val undoDeleteEvent: Flow<Pair<TrackedRepo, List<Release>>> = _undoDeleteEvent.receiveAsFlow()
 
-    val uiState: StateFlow<List<TrackedRepository>> = repository.getAllTrackedRepositories()
-        .map { repos ->
-            repos.sortedWith(
-                compareByDescending<TrackedRepository> { it.isPinned }
-                    .thenByDescending { it.hasNewUpdate }
-                    .thenBy { it.name.ifBlank { it.repoName }.lowercase() }
-            )
-        }
+    val uiState: StateFlow<List<TrackedRepo>> = getTrackedRepositoriesUseCase()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    fun getReleases(repoId: Long): Flow<List<ReleaseEntity>> = 
-        repository.getReleasesForRepository(repoId)
+    fun getReleases(repoId: Long): Flow<List<Release>> = getReleasesUseCase(repoId)
 
     fun loadMoreReleases(repoId: Long) {
         viewModelScope.launch {
             _isLoadingMore.value = true
             try {
-                repository.fetchMoreReleases(repoId)
+                fetchMoreReleasesUseCase(repoId)
             } catch (e: retrofit2.HttpException) {
                 if (e.code() == 403) {
                     _errorEvent.send("GitHub Rate Limit Reached. Try again later.")
@@ -74,9 +67,9 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun togglePin(repo: TrackedRepository) {
+    fun togglePin(repo: TrackedRepo) {
         viewModelScope.launch {
-            repository.updateRepository(repo.copy(isPinned = !repo.isPinned))
+            togglePinUseCase(repo)
         }
     }
 
@@ -84,7 +77,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             _isAdding.value = true
             try {
-                repository.addRepository(url)
+                addRepositoryUseCase(url)
                 _successEvent.send("Repository added successfully")
             } catch (e: IllegalStateException) {
                 _errorEvent.send(e.message ?: "Unknown error")
@@ -97,29 +90,28 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun deleteRepo(repo: TrackedRepository) {
+    fun deleteRepo(repo: TrackedRepo) {
         viewModelScope.launch {
-            val releases = repository.getReleasesSync(repo.id)
-            repository.deleteRepository(repo)
-            _undoDeleteEvent.send(repo to releases)
+            val result = deleteRepositoryUseCase(repo)
+            _undoDeleteEvent.send(result)
         }
     }
 
-    fun restoreRepo(repo: TrackedRepository, releases: List<ReleaseEntity>) {
+    fun restoreRepo(repo: TrackedRepo, releases: List<Release>) {
         viewModelScope.launch {
-            repository.restoreRepository(repo, releases)
+            restoreRepositoryUseCase(repo, releases)
         }
     }
 
-    fun markAsRead(repo: TrackedRepository) {
+    fun markAsRead(repo: TrackedRepo) {
         viewModelScope.launch {
-            repository.markAsRead(repo)
+            markAsReadUseCase(repo)
         }
     }
 
-    fun updateRepoName(repo: TrackedRepository, name: String) {
+    fun updateRepoName(repo: TrackedRepo, name: String) {
         viewModelScope.launch {
-            repository.updateRepository(repo.copy(name = name))
+            updateRepositoryNameUseCase(repo, name)
         }
     }
 }

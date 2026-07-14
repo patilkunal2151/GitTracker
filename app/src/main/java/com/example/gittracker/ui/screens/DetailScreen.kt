@@ -30,18 +30,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.gittracker.R
 import com.example.gittracker.data.model.ReleaseAsset
-import com.example.gittracker.data.model.ReleaseEntity
-import com.example.gittracker.data.model.TrackedRepository
-import com.google.gson.Gson
+import com.example.gittracker.domain.model.Release
+import com.example.gittracker.domain.model.TrackedRepo
+import com.example.gittracker.util.DateUtils
 import dev.jeziellago.compose.markdowntext.MarkdownText
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
-    repo: TrackedRepository?,
-    releases: List<ReleaseEntity>,
+    repo: TrackedRepo?,
+    releases: List<Release>,
     isLoadingMore: Boolean,
     onBack: () -> Unit,
     onLoadMore: (Long) -> Unit,
@@ -138,6 +136,23 @@ fun DetailScreen(
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
+                                    if (repo.latestVersionTag.contains("beta", true) || 
+                                        repo.latestVersionTag.contains("rc", true) || 
+                                        repo.latestVersionTag.contains("alpha", true)) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                        ) {
+                                            Text(
+                                                text = "Pre-release",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.tertiary,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = "Latest Release",
@@ -174,7 +189,7 @@ fun DetailScreen(
                                         )
                                     } else {
                                         TextButton(
-                                            onClick = { repo.id.let { onLoadMore(it) } },
+                                            onClick = { onLoadMore(repo.id) },
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Text(
@@ -227,17 +242,10 @@ fun SectionHeader(title: String) {
 }
 
 @Composable
-fun ReleaseItem(release: ReleaseEntity) {
+fun ReleaseItem(release: Release) {
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
-    val assets = remember(release.assetsJson) {
-        try {
-            Gson().fromJson(release.assetsJson, Array<ReleaseAsset>::class.java).toList()
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
 
     Surface(
         modifier = Modifier
@@ -259,23 +267,32 @@ fun ReleaseItem(release: ReleaseEntity) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = release.tagName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (release.createdAt.isNotBlank()) {
-                        val formattedDate = remember(release.createdAt) {
-                            try {
-                                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-                                inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-                                val date = inputFormat.parse(release.createdAt)
-                                val outputFormat = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
-                                outputFormat.format(date!!)
-                            } catch (e: Exception) {
-                                release.createdAt.substringBefore("T")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = release.tagName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (release.isPrerelease) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                            ) {
+                                Text(
+                                    text = "Pre-release",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
                             }
+                        }
+                    }
+                    if (release.createdAt > 0) {
+                        val formattedDate = remember(release.createdAt) {
+                            DateUtils.formatTimestamp(release.createdAt)
                         }
                         Text(
                             text = "Published: $formattedDate",
@@ -306,7 +323,7 @@ fun ReleaseItem(release: ReleaseEntity) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     
-                    if (assets.isNotEmpty()) {
+                    if (release.assets.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             text = stringResource(R.string.assets),
@@ -319,7 +336,7 @@ fun ReleaseItem(release: ReleaseEntity) {
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
                         
-                        assets.forEach { asset ->
+                        release.assets.forEach { asset ->
                             AssetRow(asset = asset, onDownload = {
                                 downloadFile(context, asset.downloadUrl, asset.name)
                             })

@@ -1,45 +1,37 @@
 package com.example.gittracker.data.repository
 
 import com.example.gittracker.data.local.RepositoryDao
-import com.example.gittracker.data.model.ExportData
+import com.example.gittracker.data.mapper.toDomain
+import com.example.gittracker.data.mapper.toEntity
 import com.example.gittracker.data.model.ReleaseEntity
 import com.example.gittracker.data.model.TrackedRepository
-import com.example.gittracker.data.model.TrackedRepositoryExport
 import com.example.gittracker.data.remote.GitHubApiService
-import com.example.gittracker.util.NotificationHelper
-import com.google.gson.Gson
+import com.example.gittracker.domain.model.Release
+import com.example.gittracker.domain.model.TrackedRepo
+import com.example.gittracker.util.DateUtils
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Duration.Companion.minutes
 
 @Singleton
 class AppRepository @Inject constructor(
     private val dao: RepositoryDao,
-    private val apiService: GitHubApiService,
-    private val notificationHelper: NotificationHelper,
-    private val gson: Gson
+    private val apiService: GitHubApiService
 ) {
-    fun getAllTrackedRepositories(): Flow<List<TrackedRepository>> = dao.getAllRepositories()
+    fun getAllTrackedRepositories(): Flow<List<TrackedRepo>> = 
+        dao.getAllRepositories().map { list -> list.map { it.toDomain() } }
 
-    suspend fun getRepositoryById(id: Long) = dao.getRepositoryById(id)
+    suspend fun getRepositoryById(id: Long): TrackedRepo? = 
+        dao.getRepositoryById(id)?.toDomain()
 
-    fun getReleasesForRepository(repoId: Long): Flow<List<ReleaseEntity>> = 
-        dao.getReleasesForRepository(repoId)
+    suspend fun getRepositoryByOwnerAndName(owner: String, name: String): TrackedRepo? =
+        dao.getRepositoryByOwnerAndName(owner, name)?.toDomain()
 
-    suspend fun addRepository(url: String, name: String = "", isPinned: Boolean = false) {
-        val regex = Regex("https://github.com/([^/]+)/([^/\\s]+)")
-        val matchResult = regex.find(url) ?: throw IllegalArgumentException("Invalid GitHub URL")
-        
-        val owner = matchResult.groupValues[1]
-        val repoName = matchResult.groupValues[2].removeSuffix(".git")
+    fun getReleasesForRepository(repoId: Long): Flow<List<Release>> = 
+        dao.getReleasesForRepository(repoId).map { list -> list.map { it.toDomain() } }
 
-        if (dao.getRepositoryByOwnerAndName(owner, repoName) != null) {
-            throw IllegalStateException("Repository already tracked")
-        }
-        
+    suspend fun addRepository(owner: String, repoName: String, name: String = "", isPinned: Boolean = false) {
         val releases = try { 
             apiService.getReleases(owner, repoName, perPage = 10, page = 1) 
         } catch (_: Exception) { 
@@ -47,18 +39,52 @@ class AppRepository @Inject constructor(
         }
 
         if (releases.isEmpty()) {
-            throw IllegalStateException("No releases found for this repository")
+            val tags = try { 
+                apiService.getTags(owner, repoName, perPage = 10, page = 1) 
+            } catch (_: Exception) { 
+                emptyList() 
+            }
+            
+            if (tags.isEmpty()) {
+                throw IllegalStateException("No releases or tags found for this repository")
+            }
+
+            val latestTag = tags.first()
+            val newRepo = TrackedRepository(
+                owner = owner,
+                repoName = repoName,
+                latestVersionTag = latestTag.name,
+                latestReleaseId = latestTag.name.hashCode().toLong(),
+                hasNewUpdate = false,
+                name = name,
+                isPinned = isPinned,
+                reachedEndOfReleases = tags.size < 10
+            )
+            val repoId = dao.insertRepository(newRepo)
+
+            val releaseEntities = tags.take(5).map { tag ->
+                ReleaseEntity(
+                    repoId = repoId,
+                    remoteId = tag.name.hashCode().toLong(),
+                    tagName = tag.name,
+                    changelog = "Tag release: ${tag.name}",
+                    htmlUrl = "https://github.com/$owner/$repoName/releases/tag/${tag.name}",
+                    createdAt = System.currentTimeMillis(), // We don't have tag date easily
+                    isPrerelease = tag.name.contains("beta", true) || tag.name.contains("rc", true) || tag.name.contains("alpha", true),
+                    assets = emptyList()
+                )
+            }
+            dao.insertReleases(releaseEntities)
+            return
         }
 
         val latestRelease = releases.first()
-        val latestVersion = latestRelease.tagName
-        val latestId = latestRelease.id
         
         val newRepo = TrackedRepository(
             owner = owner,
             repoName = repoName,
-            latestVersionTag = latestVersion,
-            latestReleaseId = latestId,
+            latestVersionTag = latestRelease.tagName,
+            latestReleaseId = latestRelease.id,
             hasNewUpdate = false,
             name = name,
             isPinned = isPinned,
@@ -73,86 +99,25 @@ class AppRepository @Inject constructor(
                 tagName = rel.tagName,
                 changelog = rel.body ?: "No changelog provided.",
                 htmlUrl = rel.htmlUrl,
-                createdAt = rel.publishedAt,
+                createdAt = DateUtils.parseGithubDate(rel.publishedAt),
                 isPrerelease = rel.isPrerelease,
-                assetsJson = gson.toJson(rel.assets)
+                assets = rel.assets
             )
         }
         
         dao.insertReleases(releaseEntities)
     }
 
-    suspend fun checkForUpdates() {
-        android.util.Log.d("AppRepository", "Checking for updates...")
-        // Use withTimeout to prevent the entire worker from hanging
-        withTimeoutOrNull(10.minutes) {
-            val repos = dao.getAllRepositoriesSync()
-            for (repo in repos) {
-                try {
-                    android.util.Log.d("AppRepository", "Checking repo: ${repo.owner}/${repo.repoName}")
-                    val releases = try { 
-                        apiService.getReleases(repo.owner, repo.repoName) 
-                    } catch (e: Exception) { 
-                        android.util.Log.e("AppRepository", "Failed to fetch releases for ${repo.repoName}", e)
-                        emptyList() 
-                    }
-
-                    val latestRelease = releases.firstOrNull()
-                    val latestVersion = latestRelease?.tagName ?: ""
-                    val latestId = latestRelease?.id ?: 0L
-                    
-                    if (latestId != repo.latestReleaseId && latestId != 0L) {
-                        android.util.Log.d("AppRepository", "New version found for ${repo.repoName}: $latestVersion (ID: $latestId)")
-                        
-                        val existingEntities = dao.getReleasesSync(repo.id)
-                        val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
-
-                        val newReleases = releases.filter { it.id !in existingRemoteIds }
-                            .map { rel ->
-                                ReleaseEntity(
-                                    repoId = repo.id,
-                                    remoteId = rel.id,
-                                    tagName = rel.tagName,
-                                    changelog = rel.body ?: "No changelog provided.",
-                                    htmlUrl = rel.htmlUrl,
-                                    createdAt = rel.publishedAt,
-                                    isPrerelease = rel.isPrerelease,
-                                    assetsJson = gson.toJson(rel.assets)
-                                )
-                            }
-                        
-                        if (newReleases.isNotEmpty()) {
-                            dao.insertReleases(newReleases)
-                            val updatedRepo = repo.copy(
-                                latestVersionTag = latestVersion,
-                                latestReleaseId = latestId,
-                                hasNewUpdate = true
-                            )
-                            dao.updateRepository(updatedRepo)
-                            notificationHelper.showUpdateNotification(updatedRepo)
-                        } else {
-                            // Tag changed but no new releases found in the list? 
-                            // Update tag anyway to avoid infinite loop of checks
-                            dao.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("AppRepository", "Error during update check for ${repo.repoName}", e)
-                }
-            }
-        } ?: android.util.Log.w("AppRepository", "Update check timed out after 10 minutes")
+    suspend fun deleteRepository(repo: TrackedRepo) {
+        dao.deleteRepository(repo.toEntity())
     }
 
-    suspend fun deleteRepository(repo: TrackedRepository) {
-        dao.deleteRepository(repo)
-    }
+    suspend fun getReleasesSync(repoId: Long): List<Release> = 
+        dao.getReleasesSync(repoId).map { it.toDomain() }
 
-    suspend fun getReleasesSync(repoId: Long): List<ReleaseEntity> = 
-        dao.getReleasesSync(repoId)
-
-    suspend fun restoreRepository(repo: TrackedRepository, releases: List<ReleaseEntity>) {
-        dao.insertRepository(repo)
-        val updatedReleases = releases.map { it.copy(id = 0) }
+    suspend fun restoreRepository(repo: TrackedRepo, releases: List<Release>) {
+        dao.insertRepository(repo.toEntity())
+        val updatedReleases = releases.map { it.toEntity().copy(id = 0) }
         dao.insertReleases(updatedReleases)
     }
 
@@ -161,90 +126,86 @@ class AppRepository @Inject constructor(
         if (repo.reachedEndOfReleases) return
         
         val currentReleasesCount = dao.getReleasesSync(repoId).size
-        val nextPage = (currentReleasesCount / 5) + 1
+        val nextPage = (currentReleasesCount / 10) + 1
         
-        try {
-            val newReleases = apiService.getReleases(repo.owner, repo.repoName, perPage = 10, page = nextPage)
+        val newReleases = try { 
+            apiService.getReleases(repo.owner, repo.repoName, perPage = 10, page = nextPage) 
+        } catch (_: Exception) { 
+            emptyList() 
+        }
+        
+        if (newReleases.isEmpty()) {
+            // Try fetching tags if releases are empty (maybe this repo only has tags)
+            val newTags = try { 
+                apiService.getTags(repo.owner, repo.repoName, perPage = 10, page = nextPage) 
+            } catch (_: Exception) { 
+                emptyList() 
+            }
             
-            if (newReleases.size < 10) {
+            if (newTags.isEmpty()) {
+                dao.updateRepository(repo.copy(reachedEndOfReleases = true))
+                return
+            }
+
+            val existingEntities = dao.getReleasesSync(repoId)
+            val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
+            
+            val entitiesToAdd = newTags
+                .filter { it.name.hashCode().toLong() !in existingRemoteIds }
+                .map { tag ->
+                    ReleaseEntity(
+                        repoId = repoId,
+                        remoteId = tag.name.hashCode().toLong(),
+                        tagName = tag.name,
+                        changelog = "Tag release: ${tag.name}",
+                        htmlUrl = "https://github.com/${repo.owner}/${repo.repoName}/releases/tag/${tag.name}",
+                        createdAt = System.currentTimeMillis(),
+                        isPrerelease = tag.name.contains("beta", true) || tag.name.contains("rc", true) || tag.name.contains("alpha", true),
+                        assets = emptyList()
+                    )
+                }
+            if (entitiesToAdd.isNotEmpty()) {
+                dao.insertReleases(entitiesToAdd)
+            }
+            if (newTags.size < 10) {
                 dao.updateRepository(repo.copy(reachedEndOfReleases = true))
             }
+            return
+        }
+        
+        if (newReleases.size < 10) {
+            dao.updateRepository(repo.copy(reachedEndOfReleases = true))
+        }
 
-            if (newReleases.isNotEmpty()) {
-                val existingEntities = dao.getReleasesSync(repoId)
-                val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
-                
-                val entitiesToAdd = newReleases
-                    .filter { it.id !in existingRemoteIds }
-                    .map { rel ->
-                        ReleaseEntity(
-                            repoId = repoId,
-                            remoteId = rel.id,
-                            tagName = rel.tagName,
-                            changelog = rel.body ?: "No changelog provided.",
-                            htmlUrl = rel.htmlUrl,
-                            createdAt = rel.publishedAt,
-                            isPrerelease = rel.isPrerelease,
-                            assetsJson = gson.toJson(rel.assets)
-                        )
-                    }
-                if (entitiesToAdd.isNotEmpty()) {
-                    dao.insertReleases(entitiesToAdd)
+        if (newReleases.isNotEmpty()) {
+            val existingEntities = dao.getReleasesSync(repoId)
+            val existingRemoteIds = existingEntities.map { it.remoteId }.toSet()
+            
+            val entitiesToAdd = newReleases
+                .filter { it.id !in existingRemoteIds }
+                .map { rel ->
+                    ReleaseEntity(
+                        repoId = repoId,
+                        remoteId = rel.id,
+                        tagName = rel.tagName,
+                        changelog = rel.body ?: "No changelog provided.",
+                        htmlUrl = rel.htmlUrl,
+                        createdAt = DateUtils.parseGithubDate(rel.publishedAt),
+                        isPrerelease = rel.isPrerelease,
+                        assets = rel.assets
+                    )
                 }
-            }
-        } catch (e: retrofit2.HttpException) {
-            val errorBody = e.response()?.errorBody()?.string()
-            android.util.Log.e("AppRepository", "GitHub API Error (403/Limit?): $errorBody", e)
-            throw e
-        } catch (e: Exception) {
-            android.util.Log.e("AppRepository", "Failed to fetch more releases", e)
-            throw e
-        }
-    }
-
-    suspend fun markAsRead(repo: TrackedRepository) {
-        dao.updateRepository(repo.copy(hasNewUpdate = false))
-    }
-
-    suspend fun updateRepository(repo: TrackedRepository) {
-        dao.updateRepository(repo)
-    }
-
-    suspend fun exportRepositories(): String {
-        val repos = dao.getAllRepositories().first()
-        val exportList = repos.map { 
-            TrackedRepositoryExport(
-                owner = it.owner,
-                repoName = it.repoName,
-                customName = it.name,
-                isPinned = it.isPinned
-            )
-        }
-        val exportData = ExportData(repositories = exportList)
-        return gson.toJson(exportData)
-    }
-
-    suspend fun importRepositories(json: String) {
-        val exportData = try {
-            gson.fromJson(json, ExportData::class.java)
-        } catch (e: Exception) {
-            try {
-                val oldRepos = gson.fromJson(json, Array<TrackedRepository>::class.java).toList()
-                ExportData(repositories = oldRepos.map { 
-                    TrackedRepositoryExport(it.owner, it.repoName, it.name, it.isPinned)
-                })
-            } catch (e: Exception) {
-                null
-            }
-        } ?: return
-
-        exportData.repositories.forEach { repoExport ->
-            val url = "https://github.com/${repoExport.owner}/${repoExport.repoName}"
-            try {
-                addRepository(url, repoExport.customName, repoExport.isPinned)
-            } catch (e: Exception) {
-                e.printStackTrace()
+            if (entitiesToAdd.isNotEmpty()) {
+                dao.insertReleases(entitiesToAdd)
             }
         }
+    }
+
+    suspend fun updateRepository(repo: TrackedRepo) {
+        dao.updateRepository(repo.toEntity())
+    }
+
+    suspend fun saveReleases(releases: List<Release>) {
+        dao.insertReleases(releases.map { it.toEntity() })
     }
 }

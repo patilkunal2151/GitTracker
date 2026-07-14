@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.gittracker.data.repository.AppRepository
+import com.example.gittracker.domain.usecase.SyncRepositoriesUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -12,13 +12,13 @@ import dagger.assisted.AssistedInject
 class UpdateCheckWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val repository: AppRepository
+    private val syncRepositoriesUseCase: SyncRepositoriesUseCase
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         android.util.Log.d("UpdateCheckWorker", "Starting work...")
         return try {
-            repository.checkForUpdates()
+            syncRepositoriesUseCase()
             android.util.Log.d("UpdateCheckWorker", "Work finished successfully")
             Result.success()
         } catch (e: Exception) {

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 
 @Composable
 fun AddRepoDialog(
@@ -37,7 +38,12 @@ fun AddRepoDialog(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        delay(100)
+        try {
+            focusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignored
+        }
     }
 
     AlertDialog(

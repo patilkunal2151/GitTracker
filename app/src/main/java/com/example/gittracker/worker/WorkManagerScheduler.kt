@@ -8,9 +8,9 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkInfo
 import com.example.gittracker.data.local.SettingsManager
+import com.example.gittracker.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -27,7 +27,8 @@ data class WorkStatus(
 @Singleton
 class WorkManagerScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    @param:ApplicationScope private val externalScope: CoroutineScope
 ) {
     val workStatus: Flow<WorkStatus?> = WorkManager.getInstance(context)
         .getWorkInfosForUniqueWorkFlow("UpdateCheckWork")
@@ -45,7 +46,7 @@ class WorkManagerScheduler @Inject constructor(
             .setRequiresBatteryNotLow(true)
             .build()
 
-        CoroutineScope(Dispatchers.IO).launch {
+        externalScope.launch {
             val hours = overrideHours ?: settingsManager.syncFrequency.first()
             val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(
                 hours.toLong(), TimeUnit.HOURS

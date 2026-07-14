@@ -1,7 +1,6 @@
 package com.example.gittracker.ui.screens
 
 import android.content.Intent
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,8 +27,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -40,22 +36,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import com.example.gittracker.R
-import com.example.gittracker.data.model.TrackedRepository
+import com.example.gittracker.domain.model.TrackedRepo
 import com.example.gittracker.ui.components.AddRepoDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    repositories: List<TrackedRepository>,
+    repositories: List<TrackedRepo>,
     isAdding: Boolean,
     snackbarHost: @Composable () -> Unit,
-    onRepoClick: (TrackedRepository) -> Unit,
+    onRepoClick: (TrackedRepo) -> Unit,
     onAddRepo: (String) -> Unit,
-    onDeleteRepo: (TrackedRepository) -> Unit,
-    onTogglePin: (TrackedRepository) -> Unit,
-    onUpdateName: (TrackedRepository, String) -> Unit,
+    onDeleteRepo: (TrackedRepo) -> Unit,
+    onTogglePin: (TrackedRepo) -> Unit,
+    onUpdateName: (TrackedRepo, String) -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -75,10 +71,8 @@ fun MainScreen(
         val prevIds = previousRepoIds
         val prevPinnedIds = previousPinnedIds
         
-        // Handle new repository addition
         if (prevIds != null && prevIds.isNotEmpty() && currentIds.size > prevIds.size) {
             val newId = (currentIds - prevIds).firstOrNull()
-            
             if (newId != null) {
                 val pinnedIndex = pinnedRepos.indexOfFirst { it.id == newId }
                 if (pinnedIndex != -1) {
@@ -86,22 +80,14 @@ fun MainScreen(
                 } else {
                     val otherIndex = otherRepos.indexOfFirst { it.id == newId }
                     if (otherIndex != -1) {
-                        val baseIndex = if (pinnedRepos.isNotEmpty()) {
-                            1 + pinnedRepos.size + 1 
-                        } else {
-                            0
-                        }
+                        val baseIndex = if (pinnedRepos.isNotEmpty()) 1 + pinnedRepos.size + 1 else 0
                         listState.animateScrollToItem(baseIndex + otherIndex)
                     }
                 }
             }
-        } 
-        // Handle repository being pinned
-        else if (prevPinnedIds != null && currentPinnedIds.size > prevPinnedIds.size) {
-            // A repo was just pinned, scroll to the top to show the Pinned section
+        } else if (prevPinnedIds != null && currentPinnedIds.size > prevPinnedIds.size) {
             listState.animateScrollToItem(0)
         }
-
         previousRepoIds = currentIds
         previousPinnedIds = currentPinnedIds
     }
@@ -205,70 +191,24 @@ fun MainScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                            if (pinnedRepos.isNotEmpty()) {
-                                item(key = "pinned_header") {
-                                    SectionHeader(
-                                        title = "Pinned",
-                                        modifier = Modifier.animateItem()
-                                    )
-                                }
-                                items(pinnedRepos, key = { it.id }) { repo ->
-                                    RepoItem(
-                                        modifier = Modifier.animateItem(),
-                                        repo = repo,
-                                        isSelected = repo.id in selectedIds,
-                                        onToggleSelection = {
-                                            selectedIds = if (repo.id in selectedIds) {
-                                                selectedIds - repo.id
-                                            } else {
-                                                selectedIds + repo.id
-                                            }
-                                        },
-                                        onClick = { 
-                                            if (isSelectionMode) {
-                                                selectedIds = if (repo.id in selectedIds) {
-                                                    selectedIds - repo.id
-                                                } else {
-                                                    selectedIds + repo.id
-                                                }
-                                            } else {
-                                                onRepoClick(repo)
-                                            }
-                                        },
-                                        onDeleteRepo = onDeleteRepo,
-                                        onTogglePin = onTogglePin,
-                                        onUpdateName = onUpdateName
-                                    )
-                                }
-                                if (otherRepos.isNotEmpty()) {
-                                    item(key = "all_header") {
-                                        SectionHeader(
-                                            title = "Repositories",
-                                            modifier = Modifier.animateItem()
-                                        )
-                                    }
-                                }
+                        if (pinnedRepos.isNotEmpty()) {
+                            item(key = "pinned_header") {
+                                SectionHeader(
+                                    title = "Pinned",
+                                    modifier = Modifier.animateItem()
+                                )
                             }
-
-                            items(otherRepos, key = { it.id }) { repo ->
+                            items(pinnedRepos, key = { it.id }) { repo ->
                                 RepoItem(
                                     modifier = Modifier.animateItem(),
                                     repo = repo,
                                     isSelected = repo.id in selectedIds,
                                     onToggleSelection = {
-                                        selectedIds = if (repo.id in selectedIds) {
-                                            selectedIds - repo.id
-                                        } else {
-                                            selectedIds + repo.id
-                                        }
+                                        selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
                                     },
                                     onClick = { 
                                         if (isSelectionMode) {
-                                            selectedIds = if (repo.id in selectedIds) {
-                                                selectedIds - repo.id
-                                            } else {
-                                                selectedIds + repo.id
-                                            }
+                                            selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
                                         } else {
                                             onRepoClick(repo)
                                         }
@@ -278,6 +218,35 @@ fun MainScreen(
                                     onUpdateName = onUpdateName
                                 )
                             }
+                            if (otherRepos.isNotEmpty()) {
+                                item(key = "all_header") {
+                                    SectionHeader(
+                                        title = "Repositories",
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                            }
+                        }
+
+                        items(otherRepos, key = { it.id }) { repo ->
+                            RepoItem(
+                                modifier = Modifier.animateItem(),
+                                repo = repo,
+                                isSelected = repo.id in selectedIds,
+                                onToggleSelection = {
+                                    selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
+                                },
+                                onClick = { 
+                                    if (isSelectionMode) {
+                                        selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
+                                    } else {
+                                        onRepoClick(repo)
+                                    }
+                                },
+                                onDeleteRepo = onDeleteRepo,
+                                onTogglePin = onTogglePin,
+                                onUpdateName = onUpdateName
+                            )
                         }
                     }
                 }
@@ -294,6 +263,7 @@ fun MainScreen(
             }
         }
     }
+}
 
 
 @Composable
@@ -303,7 +273,6 @@ fun GradientBlurBackground() {
     val cornerColor = if (isDark) Color.Black else Color.White
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Themed radial gradient from the top right corner
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -325,13 +294,13 @@ fun GradientBlurBackground() {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RepoItem(
-    repo: TrackedRepository,
+    repo: TrackedRepo,
     isSelected: Boolean,
     onToggleSelection: () -> Unit,
     onClick: () -> Unit,
-    onDeleteRepo: (TrackedRepository) -> Unit,
-    onTogglePin: (TrackedRepository) -> Unit,
-    onUpdateName: (TrackedRepository, String) -> Unit,
+    onDeleteRepo: (TrackedRepo) -> Unit,
+    onTogglePin: (TrackedRepo) -> Unit,
+    onUpdateName: (TrackedRepo, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -365,171 +334,175 @@ fun RepoItem(
                 .padding(20.dp)
                 .fillMaxWidth()
         ) {
-                var isEditing by remember { mutableStateOf(false) }
-                var menuExpanded by remember { mutableStateOf(false) }
-                var nameText by remember(repo.id, repo.name) { mutableStateOf(repo.name) }
-                val focusRequester = remember { FocusRequester() }
+            var isEditing by remember { mutableStateOf(false) }
+            var menuExpanded by remember { mutableStateOf(false) }
+            var nameText by remember(repo.id, repo.name) { mutableStateOf(repo.name) }
+            val focusRequester = remember { FocusRequester() }
 
-                if (isEditing) {
-                    LaunchedEffect(Unit) {
+            if (isEditing) {
+                LaunchedEffect(Unit) {
+                    delay(100)
+                    try {
                         focusRequester.requestFocus()
+                    } catch (e: Exception) {
+                        // Ignored
                     }
-                    OutlinedTextField(
-                        value = nameText,
-                        onValueChange = { nameText = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                        placeholder = { Text(repo.repoName) },
-                        textStyle = MaterialTheme.typography.titleMedium,
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                onUpdateName(repo, nameText)
-                                isEditing = false
-                            }) {
-                                Icon(Icons.Default.Check, contentDescription = "Save")
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                }
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = { Text(repo.repoName) },
+                    textStyle = MaterialTheme.typography.titleMedium,
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            onUpdateName(repo, nameText)
+                            isEditing = false
+                        }) {
+                            Icon(Icons.Default.Check, contentDescription = "Save")
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = repo.name.ifBlank { repo.repoName },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                } else {
+                    
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.height(32.dp) 
                     ) {
-                        Text(
-                            text = repo.name.ifBlank { repo.repoName },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        
-                        // Fixed-size container for trailing actions to prevent dimension shifts
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.height(32.dp) 
-                        ) {
-                            if (!isSelected) {
-                                Box {
-                                    IconButton(
-                                        onClick = { menuExpanded = true },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.MoreVert,
-                                            contentDescription = "Options",
-                                            modifier = Modifier.size(20.dp),
-                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = menuExpanded,
-                                        onDismissRequest = { menuExpanded = false },
-                                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text(if (repo.isPinned) "Unpin" else "Pin to Top") },
-                                            onClick = {
-                                                onTogglePin(repo)
-                                                menuExpanded = false
-                                            },
-                                            leadingIcon = {
-                                                Icon(
-                                                    if (repo.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Edit Name") },
-                                            onClick = {
-                                                isEditing = true
-                                                menuExpanded = false
-                                            },
-                                            leadingIcon = {
-                                                Icon(
-                                                    Icons.Default.Edit,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Share") },
-                                            onClick = {
-                                                val sendIntent: Intent = Intent().apply {
-                                                    action = Intent.ACTION_SEND
-                                                    putExtra(Intent.EXTRA_TEXT, "Check out this repository: https://github.com/${repo.owner}/${repo.repoName}")
-                                                    type = "text/plain"
-                                                }
-                                                val shareIntent = Intent.createChooser(sendIntent, null)
-                                                context.startActivity(shareIntent)
-                                                menuExpanded = false
-                                            },
-                                            leadingIcon = {
-                                                Icon(
-                                                    Icons.Default.Share,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                                            onClick = {
-                                                onDeleteRepo(repo)
-                                                menuExpanded = false
-                                            },
-                                            leadingIcon = {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp),
-                                                    tint = MaterialTheme.colorScheme.error
-                                                )
-                                            }
-                                        )
-                                    }
+                        if (!isSelected) {
+                            Box {
+                                IconButton(
+                                    onClick = { menuExpanded = true },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Options",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                    )
                                 }
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp).padding(4.dp) // Padded to align with 32dp container
-                                )
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false },
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(if (repo.isPinned) "Unpin" else "Pin to Top") },
+                                        onClick = {
+                                            onTogglePin(repo)
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                if (repo.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Edit Name") },
+                                        onClick = {
+                                            isEditing = true
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Share") },
+                                        onClick = {
+                                            val sendIntent: Intent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, "Check out this repository: https://github.com/${repo.owner}/${repo.repoName}")
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent = Intent.createChooser(sendIntent, null)
+                                            context.startActivity(shareIntent)
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Share,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            onDeleteRepo(repo)
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    )
+                                }
                             }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp).padding(4.dp)
+                            )
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = "${repo.owner}/${repo.repoName}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "${repo.owner}/${repo.repoName}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
@@ -544,22 +517,42 @@ fun RepoItem(
                         )
                     }
 
-                    if (repo.hasNewUpdate) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF4CAF50).copy(alpha = 0.15f),
-                        ) {
-                            Text(
-                                text = "Update Available",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF2E7D32),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (repo.latestVersionTag.contains("beta", true) || 
+                            repo.latestVersionTag.contains("rc", true) || 
+                            repo.latestVersionTag.contains("alpha", true)) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Pre-release",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        if (repo.hasNewUpdate) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                            ) {
+                                Text(
+                                    text = "Update Available",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF2E7D32),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
-                }
             }
+        }
     }
 }
 
@@ -576,4 +569,3 @@ fun SectionHeader(
         modifier = modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp)
     )
 }
-

@@ -25,7 +25,7 @@ data class ReleaseEntity(
     val tagName: String,
     val changelog: String,
     val htmlUrl: String,
-    val createdAt: String,
+    val createdAt: Long,
     val isPrerelease: Boolean = false,
-    val assetsJson: String = "[]"
+    val assets: List<ReleaseAsset> = emptyList()
 )
