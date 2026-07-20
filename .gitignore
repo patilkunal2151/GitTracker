@@ -21,6 +21,7 @@
 .externalNativeBuild
 .cxx
 *.apk
+/app/release/
 
 # Local configuration files
 local.properties

@@ -19,8 +19,8 @@ class GitTrackerApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // Use KEEP to ensure we don't reset the timer if it's already running
-        scheduler.scheduleUpdateCheck(policy = ExistingPeriodicWorkPolicy.KEEP)
+        // Use UPDATE to ensure we pick up changes to constraints or interval
+        scheduler.scheduleUpdateCheck(policy = ExistingPeriodicWorkPolicy.UPDATE)
     }
 
     override val workManagerConfiguration: Configuration

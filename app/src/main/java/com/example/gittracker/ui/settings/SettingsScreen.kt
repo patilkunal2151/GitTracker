@@ -87,8 +87,10 @@ fun SettingsScreen(
                     SettingsCard {
                         Column {
                             SettingsItem(
-                                label = stringResource(R.string.sync_frequency),
-                                description = "Automatically checks for updates every hour.",
+                                label = "Automatic Update Check",
+                                description = if (state.isDetour) 
+                                    "GitHub rate limit hit. Waiting for reset." 
+                                    else "The GitHub rate limit is checked every hour before syncing new releases.",
                                 onClick = { }
                             )
                             HorizontalDivider(
@@ -103,7 +105,7 @@ fun SettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Next sync in:",
+                                    text = if (state.isDetour) "Quota resets in:" else "Next check in:",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -111,7 +113,7 @@ fun SettingsScreen(
                                     text = state.nextSyncCountdown ?: "Calculating...",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                 )
                             }

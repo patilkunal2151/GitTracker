@@ -2,9 +2,7 @@ package com.example.gittracker.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkInfo
-import com.example.gittracker.data.local.SettingsManager
 import com.example.gittracker.domain.usecase.ExportRepositoriesUseCase
 import com.example.gittracker.domain.usecase.ImportRepositoriesUseCase
 import com.example.gittracker.worker.WorkManagerScheduler
@@ -18,14 +16,13 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
 data class SettingsUiState(
-    val syncFrequency: Int = 8,
     val nextSyncCountdown: String? = null,
-    val isSyncing: Boolean = false
+    val isSyncing: Boolean = false,
+    val isDetour: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsManager: SettingsManager,
     private val scheduler: WorkManagerScheduler,
     private val exportRepositoriesUseCase: ExportRepositoriesUseCase,
     private val importRepositoriesUseCase: ImportRepositoriesUseCase
@@ -45,14 +42,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        settingsManager.syncFrequency,
         scheduler.workStatus,
         ticker
-    ) { frequency, status, currentTime ->
+    ) { status, currentTime ->
         var isSyncing = false
+        var isDetour = false
         val countdown = if (status != null) {
             val nextTime = status.nextTime
             val state = status.state
+            isDetour = status.isDetour
             
             if (state == WorkInfo.State.RUNNING) {
                 isSyncing = true
@@ -73,19 +71,12 @@ class SettingsViewModel @Inject constructor(
         } else {
             null
         }
-        SettingsUiState(frequency, countdown, isSyncing)
+        SettingsUiState(countdown, isSyncing, isDetour)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SettingsUiState()
     )
-
-    fun setSyncFrequency(hours: Int) {
-        viewModelScope.launch {
-            settingsManager.setSyncFrequency(hours)
-            scheduler.scheduleUpdateCheck(ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, overrideHours = hours)
-        }
-    }
 
     fun exportRepositories() {
         viewModelScope.launch {

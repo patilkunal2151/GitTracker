@@ -21,7 +21,6 @@
     <string name="sync_frequency">Sync Frequency</string>
     <string name="back">Back</string>
     <string name="no_history">No history available.</string>
-    <string name="tag_history">Tag History</string>
     <string name="release_history">Release History</string>
     <string name="data">Data</string>
     <string name="export_data">Export Repositories</string>
@@ -29,9 +28,9 @@
     <string name="import_data">Import Repositories</string>
     <string name="import_description">Load repositories from a previously exported JSON file</string>
     <string name="about">About</string>
-    <string name="about_description">Git Tracker is a standalone, Android application designed to track GitHub repository updates using the public GitHub REST API. By leveraging OkHttp Native ETag Caching and WorkManager with Jitter, it ensures minimal API rate limit usage and maximum battery preservation.</string>
-    <string name="key_features">Architecture &amp; Strategy</string>
-    <string name="features_list">• Standalone &amp; Offline-first architectural design.\n• OkHttp Native ETag Caching for efficient data sync.\n• WorkManager with Jitter (Flex Intervals) for battery preservation.\n• Automated background update checks and notifications.\n• Modern Jetpack Compose UI with adaptive layouts.</string>
+    <string name="about_description">Git Tracker is a modern Android application designed to monitor GitHub repository releases. It features a resilient background synchronization system that automatically manages GitHub\'s API rate limits, ensuring you never miss a version update while preserving battery and data.</string>
+    <string name="key_features">Technical Highlights</string>
+    <string name="features_list">• **Automated Resilient Sync**: Intelligent 1-hour checks that adapt to GitHub rate limits.\n• **Release-First Monitoring**: Focuses exclusively on official releases for high-quality metadata.\n• **Offline-First Architecture**: Powered by Room database for instant access to release history.\n• **Smart Quota Management**: Pre-sync quota checks to avoid unnecessary network calls.\n• **Modern Adaptive UI**: A fluid Material 3 experience that scales across all device types.</string>
     <string name="links">Links &amp; Resources</string>
     <string name="source_code">Source Code</string>
     <string name="report_issue">Report an Issue</string>

@@ -3,70 +3,50 @@ package com.example.gittracker.domain.usecase
 import com.example.gittracker.data.mapper.*
 import com.example.gittracker.data.remote.GitHubApiService
 import com.example.gittracker.data.repository.AppRepository
-import com.example.gittracker.domain.model.Release
 import com.example.gittracker.util.NotificationHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
 
+sealed class SyncResult {
+    object Success : SyncResult()
+    data class RateLimited(val resetTimeMillis: Long) : SyncResult()
+    data class Error(val message: String) : SyncResult()
+}
+
 class SyncRepositoriesUseCase @Inject constructor(
     private val repository: AppRepository,
     private val apiService: GitHubApiService,
     private val notificationHelper: NotificationHelper
 ) {
-    suspend operator fun invoke() {
-        withTimeoutOrNull(10.minutes) {
+    suspend operator fun invoke(): SyncResult {
+        // 1. Pre-check quota
+        val resetTime = repository.getRateLimitStatus()
+        if (resetTime != null) {
+            return SyncResult.RateLimited(resetTime)
+        }
+
+        return withTimeoutOrNull(10.minutes) {
             val repos = repository.getAllTrackedRepositories().first()
             for (repo in repos) {
                 try {
-                    val releases = try { 
+                    val releasesResponse = try { 
                         apiService.getReleases(repo.owner, repo.repoName) 
                     } catch (_: Exception) { 
-                        emptyList() 
+                        null 
                     }
 
-                    if (releases.isEmpty()) {
-                        val tags = try { 
-                            apiService.getTags(repo.owner, repo.repoName) 
-                        } catch (_: Exception) { 
-                            emptyList() 
+                    if (releasesResponse != null && releasesResponse.code() == 403) {
+                        val resetHeader = releasesResponse.headers()["x-ratelimit-reset"]?.toLongOrNull()
+                        if (resetHeader != null) {
+                            return@withTimeoutOrNull SyncResult.RateLimited(resetHeader * 1000)
                         }
+                    }
 
-                        if (tags.isNotEmpty()) {
-                            val latestTag = tags.first()
-                            val latestId = latestTag.name.hashCode().toLong()
-                            
-                            if (latestId != repo.latestReleaseId) {
-                                val existingReleases = repository.getReleasesSync(repo.id)
-                                val existingRemoteIds = existingReleases.map { it.remoteId }.toSet()
-                                
-                                val newReleases = tags.filter { it.name.hashCode().toLong() !in existingRemoteIds }
-                                    .map { tag ->
-                                        Release(
-                                            repoId = repo.id,
-                                            remoteId = tag.name.hashCode().toLong(),
-                                            tagName = tag.name,
-                                            changelog = "Tag release: ${tag.name}",
-                                            htmlUrl = "https://github.com/${repo.owner}/${repo.repoName}/releases/tag/${tag.name}",
-                                            createdAt = System.currentTimeMillis(),
-                                            isPrerelease = tag.name.contains("beta", true) || tag.name.contains("rc", true) || tag.name.contains("alpha", true),
-                                            assets = emptyList()
-                                        )
-                                    }
-                                
-                                if (newReleases.isNotEmpty()) {
-                                    repository.saveReleases(newReleases)
-                                    val updatedRepo = repo.copy(
-                                        latestVersionTag = latestTag.name,
-                                        latestReleaseId = latestId,
-                                        hasNewUpdate = true
-                                    )
-                                    repository.updateRepository(updatedRepo)
-                                    notificationHelper.showUpdateNotification(updatedRepo)
-                                }
-                            }
-                        }
+                    val releases = releasesResponse?.body() ?: emptyList()
+
+                    if (releases.isEmpty()) {
                         continue
                     }
 
@@ -95,10 +75,11 @@ class SyncRepositoriesUseCase @Inject constructor(
                             repository.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
                         }
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("SyncUseCase", "Error updating ${repo.repoName}", e)
+                } catch (_: Exception) {
+                    android.util.Log.e("SyncUseCase", "Error updating ${repo.repoName}")
                 }
             }
-        }
+            SyncResult.Success
+        } ?: SyncResult.Error("Sync timed out")
     }
 }
