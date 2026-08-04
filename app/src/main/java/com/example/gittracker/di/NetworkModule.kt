@@ -11,6 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
@@ -32,7 +33,7 @@ object NetworkModule {
     fun provideCommonHeadersInterceptor(): Interceptor {
         return Interceptor { chain ->
             val request = chain.request().newBuilder()
-                .header("User-Agent", "UpdateTrackerApp/1.2.0")
+                .header("User-Agent", "GitTrackerApp/1.4.0")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
             chain.proceed(request)
@@ -41,13 +42,23 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideLoggingInterceptor(): HttpLoggingInterceptor {
+        return HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+    }
+
+    @Provides
+    @Singleton
     fun provideOkHttpClient(
         cache: Cache,
-        commonHeadersInterceptor: Interceptor
+        commonHeadersInterceptor: Interceptor,
+        loggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .cache(cache)
             .addInterceptor(commonHeadersInterceptor)
+            .addInterceptor(loggingInterceptor)
             .build()
     }
 

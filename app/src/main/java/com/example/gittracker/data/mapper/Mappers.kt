@@ -14,7 +14,11 @@ fun TrackedRepository.toDomain(): TrackedRepo = TrackedRepo(
     hasNewUpdate = hasNewUpdate,
     name = name,
     isPinned = isPinned,
-    reachedEndOfReleases = reachedEndOfReleases
+    reachedEndOfReleases = reachedEndOfReleases,
+    description = description,
+    stargazersCount = stargazersCount,
+    forksCount = forksCount,
+    language = language
 )
 
 fun TrackedRepo.toEntity(): TrackedRepository = TrackedRepository(
@@ -26,7 +30,11 @@ fun TrackedRepo.toEntity(): TrackedRepository = TrackedRepository(
     hasNewUpdate = hasNewUpdate,
     name = name,
     isPinned = isPinned,
-    reachedEndOfReleases = reachedEndOfReleases
+    reachedEndOfReleases = reachedEndOfReleases,
+    description = description,
+    stargazersCount = stargazersCount,
+    forksCount = forksCount,
+    language = language
 )
 
 fun ReleaseEntity.toDomain(): Release = Release(

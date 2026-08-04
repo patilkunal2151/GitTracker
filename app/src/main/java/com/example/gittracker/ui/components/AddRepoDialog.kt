@@ -1,11 +1,16 @@
 package com.example.gittracker.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -15,17 +20,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gittracker.R
-
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,34 +40,39 @@ fun AddRepoDialog(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(100)
-        try {
-            focusRequester.requestFocus()
-        } catch (e: Exception) {
-            // Ignored
+        // More robust focus request: retry until initialized or timeout
+        var retries = 0
+        while (retries < 10) {
+            try {
+                focusRequester.requestFocus()
+                break
+            } catch (e: Exception) {
+                delay(100)
+                retries++
+            }
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = MaterialTheme.colorScheme.background,
+        tonalElevation = 0.dp,
         title = { 
             Text(
                 text = stringResource(R.string.add_repository),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
             ) 
         },
         text = {
             Column {
                 Text(
                     text = stringResource(R.string.enter_url),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = url,
                     onValueChange = { 
@@ -78,21 +85,20 @@ fun AddRepoDialog(
                     placeholder = { 
                         Text(
                             text = stringResource(R.string.url_placeholder),
-                            maxLines = 1,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodySmall
                         ) 
                     },
                     isError = isError,
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = MaterialTheme.typography.bodySmall
                 )
                 if (isError) {
                     Text(
                         text = stringResource(R.string.invalid_url), 
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                     )
                 }
             }
@@ -106,19 +112,29 @@ fun AddRepoDialog(
                         isError = true
                     }
                 },
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Text(
                     text = stringResource(R.string.add),
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+            ) {
                 Text(
                     text = stringResource(R.string.cancel),
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

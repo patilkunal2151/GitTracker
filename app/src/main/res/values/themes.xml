@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.GitTracker" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.GitTracker" parent="android:Theme.DeviceDefault.NoActionBar">
         <!-- Prevent black blink by matching system background -->
         <item name="android:windowBackground">?android:attr/colorBackground</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

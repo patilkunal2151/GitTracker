@@ -3,13 +3,16 @@ package com.example.gittracker.data.repository
 import com.example.gittracker.data.local.RepositoryDao
 import com.example.gittracker.data.mapper.toDomain
 import com.example.gittracker.data.mapper.toEntity
+import com.example.gittracker.data.model.GitHubRepo
 import com.example.gittracker.data.model.ReleaseEntity
 import com.example.gittracker.data.model.TrackedRepository
 import com.example.gittracker.data.remote.GitHubApiService
 import com.example.gittracker.domain.model.Release
 import com.example.gittracker.domain.model.TrackedRepo
 import com.example.gittracker.util.DateUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +23,9 @@ class AppRepository @Inject constructor(
     private val apiService: GitHubApiService
 ) {
     fun getAllTrackedRepositories(): Flow<List<TrackedRepo>> = 
-        dao.getAllRepositories().map { list -> list.map { it.toDomain() } }
+        dao.getAllRepositories()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     suspend fun getRepositoryById(id: Long): TrackedRepo? = 
         dao.getRepositoryById(id)?.toDomain()
@@ -29,9 +34,18 @@ class AppRepository @Inject constructor(
         dao.getRepositoryByOwnerAndName(owner, name)?.toDomain()
 
     fun getReleasesForRepository(repoId: Long): Flow<List<Release>> = 
-        dao.getReleasesForRepository(repoId).map { list -> list.map { it.toDomain() } }
+        dao.getReleasesForRepository(repoId)
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     suspend fun addRepository(owner: String, repoName: String, name: String = "", isPinned: Boolean = false) {
+        val repoDetailsResponse = try {
+            apiService.getRepoDetails(owner, repoName)
+        } catch (_: Exception) {
+            null
+        }
+        val repoDetails = repoDetailsResponse?.body()
+
         val releasesResponse = try { 
             apiService.getReleases(owner, repoName, perPage = 10, page = 1) 
         } catch (_: Exception) { 
@@ -53,7 +67,11 @@ class AppRepository @Inject constructor(
             hasNewUpdate = false,
             name = name,
             isPinned = isPinned,
-            reachedEndOfReleases = releases.size < 10
+            reachedEndOfReleases = releases.size < 10,
+            description = repoDetails?.description,
+            stargazersCount = repoDetails?.stargazersCount ?: 0,
+            forksCount = repoDetails?.forksCount ?: 0,
+            language = repoDetails?.language
         )
         val repoId = dao.insertRepository(newRepo)
         
@@ -135,6 +153,33 @@ class AppRepository @Inject constructor(
 
     suspend fun updateRepository(repo: TrackedRepo) {
         dao.updateRepository(repo.toEntity())
+    }
+
+    suspend fun searchRepositories(query: String): List<GitHubRepo> {
+        val response = try {
+            apiService.searchRepositories(query)
+        } catch (_: Exception) {
+            null
+        }
+        return response?.body()?.items ?: emptyList()
+    }
+
+    suspend fun getReadme(owner: String, repoName: String): String? {
+        val response = try {
+            apiService.getReadme(owner, repoName)
+        } catch (_: Exception) {
+            null
+        }
+        return if (response?.isSuccessful == true) {
+            val readme = response.body()
+            if (readme?.encoding == "base64") {
+                android.util.Base64.decode(readme.content.replace("\n", ""), android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
+            } else {
+                readme?.content
+            }
+        } else {
+            null
+        }
     }
 
     suspend fun getRateLimitStatus(): Long? {

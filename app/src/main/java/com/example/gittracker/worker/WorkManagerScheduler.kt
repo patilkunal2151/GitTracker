@@ -6,6 +6,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkInfo
@@ -76,6 +77,7 @@ class WorkManagerScheduler @Inject constructor(
         val workRequest = OneTimeWorkRequestBuilder<UpdateCheckWorker>()
             .setInitialDelay(delay + 10000, TimeUnit.MILLISECONDS) // Add 10s buffer
             .setConstraints(constraints)
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag("detour_sync")
             .build()
 

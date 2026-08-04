@@ -28,14 +28,14 @@
     <string name="import_data">Import Repositories</string>
     <string name="import_description">Load repositories from a previously exported JSON file</string>
     <string name="about">About</string>
-    <string name="about_description">Git Tracker is a modern Android application designed to monitor GitHub repository releases. It features a resilient background synchronization system that automatically manages GitHub\'s API rate limits, ensuring you never miss a version update while preserving battery and data.</string>
-    <string name="key_features">Technical Highlights</string>
-    <string name="features_list">• **Automated Resilient Sync**: Intelligent 1-hour checks that adapt to GitHub rate limits.\n• **Release-First Monitoring**: Focuses exclusively on official releases for high-quality metadata.\n• **Offline-First Architecture**: Powered by Room database for instant access to release history.\n• **Smart Quota Management**: Pre-sync quota checks to avoid unnecessary network calls.\n• **Modern Adaptive UI**: A fluid Material 3 experience that scales across all device types.</string>
+    <string name="about_description">Git Tracker is a professional version control companion designed to keep you at the forefront of the software you rely on. By monitoring official GitHub releases, it provides a streamlined experience for tracking updates, reviewing changelogs, and managing assets for the projects you care about most.</string>
+    <string name="key_features">App Features</string>
+    <string name="features_list">• **Precision Syncing**: Robust background monitoring with intelligent rate-limit handling.\n• **Enriched Documentation**: Full access to release notes and rendered READMEs, available offline.\n• **Global Discovery**: Search and discover new repositories through direct GitHub API integration.\n• **Native Experience**: A high-performance, Material 3 interface optimized for all Android form factors.\n• **Data Portability**: Full support for importing and exporting your repository lists as standard JSON.</string>
     <string name="links">Links &amp; Resources</string>
     <string name="source_code">Source Code</string>
     <string name="report_issue">Report an Issue</string>
     <string name="visit_github">Visit GitHub Repository</string>
     <string name="app_version">Version</string>
-    <string name="developer">Built entirely with AI-Assisted Development</string>
-    <string name="made_with">Transprently Crafted with AI ❤️</string>
+    <string name="developer">Built by patilkunal2151</string>
+    <string name="made_with">Crafted with ❤️ and AI Innovation</string>
 </resources>

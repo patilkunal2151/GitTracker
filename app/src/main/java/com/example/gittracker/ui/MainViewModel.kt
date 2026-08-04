@@ -21,7 +21,8 @@ class MainViewModel @Inject constructor(
     private val updateRepositoryNameUseCase: UpdateRepositoryNameUseCase,
     private val restoreRepositoryUseCase: RestoreRepositoryUseCase,
     private val fetchMoreReleasesUseCase: FetchMoreReleasesUseCase,
-    private val getReleasesUseCase: GetReleasesUseCase
+    private val getReleasesUseCase: GetReleasesUseCase,
+    private val getReadmeUseCase: GetReadmeUseCase
 ) : ViewModel() {
 
     private val _isAdding = MutableStateFlow(false)
@@ -29,6 +30,9 @@ class MainViewModel @Inject constructor(
 
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore = _isLoadingMore.asStateFlow()
+
+    private val _readme = MutableStateFlow<String?>(null)
+    val readme = _readme.asStateFlow()
 
     private val _errorEvent = Channel<String>(Channel.BUFFERED)
     val errorEvent: Flow<String> = _errorEvent.receiveAsFlow()
@@ -47,6 +51,12 @@ class MainViewModel @Inject constructor(
         )
 
     fun getReleases(repoId: Long): Flow<List<Release>> = getReleasesUseCase(repoId)
+
+    fun fetchReadme(owner: String, repoName: String) {
+        viewModelScope.launch {
+            _readme.value = getReadmeUseCase(owner, repoName)
+        }
+    }
 
     fun loadMoreReleases(repoId: Long) {
         viewModelScope.launch {

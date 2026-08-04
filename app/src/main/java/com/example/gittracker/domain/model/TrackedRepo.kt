@@ -9,5 +9,9 @@ data class TrackedRepo(
     val hasNewUpdate: Boolean = false,
     val name: String = "",
     val isPinned: Boolean = false,
-    val reachedEndOfReleases: Boolean = false
+    val reachedEndOfReleases: Boolean = false,
+    val description: String? = null,
+    val stargazersCount: Int = 0,
+    val forksCount: Int = 0,
+    val language: String? = null
 )

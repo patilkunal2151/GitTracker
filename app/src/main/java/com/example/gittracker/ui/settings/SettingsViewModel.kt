@@ -1,5 +1,7 @@
 package com.example.gittracker.ui.settings
 
+import android.content.Context
+import android.os.PowerManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
@@ -7,6 +9,7 @@ import com.example.gittracker.domain.usecase.ExportRepositoriesUseCase
 import com.example.gittracker.domain.usecase.ImportRepositoriesUseCase
 import com.example.gittracker.worker.WorkManagerScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -18,11 +21,13 @@ import kotlin.time.Duration.Companion.seconds
 data class SettingsUiState(
     val nextSyncCountdown: String? = null,
     val isSyncing: Boolean = false,
-    val isDetour: Boolean = false
+    val isDetour: Boolean = false,
+    val isBatteryOptimized: Boolean = true
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val scheduler: WorkManagerScheduler,
     private val exportRepositoriesUseCase: ExportRepositoriesUseCase,
     private val importRepositoriesUseCase: ImportRepositoriesUseCase
@@ -54,8 +59,9 @@ class SettingsViewModel @Inject constructor(
             
             if (state == WorkInfo.State.RUNNING) {
                 isSyncing = true
-                "Syncing..."
-            } else if (nextTime == Long.MAX_VALUE) {
+            }
+
+            if (nextTime == Long.MAX_VALUE || nextTime == 0L) {
                 "Calculating..."
             } else {
                 val diff = nextTime - currentTime
@@ -71,7 +77,15 @@ class SettingsViewModel @Inject constructor(
         } else {
             null
         }
-        SettingsUiState(countdown, isSyncing, isDetour)
+
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val isOptimized = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        } else {
+            false
+        }
+
+        SettingsUiState(countdown, isSyncing, isDetour, isBatteryOptimized = isOptimized)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

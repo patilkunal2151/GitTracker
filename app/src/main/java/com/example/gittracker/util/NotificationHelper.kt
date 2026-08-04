@@ -25,25 +25,47 @@ class NotificationHelper @Inject constructor(
     companion object {
         private const val CHANNEL_ID = "repo_updates"
         private const val CHANNEL_NAME = "Repository Updates"
+        private const val SYNC_CHANNEL_ID = "background_sync"
+        private const val SYNC_CHANNEL_NAME = "Background Sync"
         private const val GROUP_KEY = "com.example.gittracker.UPDATES"
         private const val SUMMARY_ID = 0
+        const val SYNC_NOTIFICATION_ID = 1001
     }
 
     init {
-        createNotificationChannel()
+        createNotificationChannels()
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val updateChannel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Notifications for tracked repository updates"
             }
-            notificationManager.createNotificationChannel(channel)
+            
+            val syncChannel = NotificationChannel(
+                SYNC_CHANNEL_ID,
+                SYNC_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Status of background update checks"
+            }
+            
+            notificationManager.createNotificationChannels(listOf(updateChannel, syncChannel))
         }
+    }
+
+    fun getSyncNotification(): android.app.Notification {
+        return NotificationCompat.Builder(context, SYNC_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setContentTitle("Checking for updates")
+            .setContentText("Refreshing repository data...")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .build()
     }
 
     fun showUpdateNotification(repo: TrackedRepo) {

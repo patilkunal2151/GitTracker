@@ -13,12 +13,12 @@
                 android:endX="108"
                 android:endY="108"
                 android:type="linear">
-                <item android:offset="0" android:color="#6750A4"/>
-                <item android:offset="1" android:color="#4F378B"/>
+                <item android:offset="0" android:color="#0969DA"/>
+                <item android:offset="1" android:color="#054EAA"/>
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle grid/pattern -->
+    <!-- Subtle grid/pattern - reverted to white for better contrast with white logo -->
     <path
         android:fillColor="#00000000"
         android:pathData="M54,0V108M0,54H108"
