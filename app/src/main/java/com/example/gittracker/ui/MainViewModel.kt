@@ -40,8 +40,8 @@ class MainViewModel @Inject constructor(
     private val _successEvent = Channel<String>(Channel.BUFFERED)
     val successEvent: Flow<String> = _successEvent.receiveAsFlow()
 
-    private val _undoDeleteEvent = Channel<Pair<TrackedRepo, List<Release>>>(Channel.BUFFERED)
-    val undoDeleteEvent: Flow<Pair<TrackedRepo, List<Release>>> = _undoDeleteEvent.receiveAsFlow()
+    private val _undoDeleteEvent = Channel<List<Pair<TrackedRepo, List<Release>>>>(Channel.BUFFERED)
+    val undoDeleteEvent: Flow<List<Pair<TrackedRepo, List<Release>>>> = _undoDeleteEvent.receiveAsFlow()
 
     val uiState: StateFlow<List<TrackedRepo>> = getTrackedRepositoriesUseCase()
         .stateIn(
@@ -103,13 +103,22 @@ class MainViewModel @Inject constructor(
     fun deleteRepo(repo: TrackedRepo) {
         viewModelScope.launch {
             val result = deleteRepositoryUseCase(repo)
-            _undoDeleteEvent.send(result)
+            _undoDeleteEvent.send(listOf(result))
         }
     }
 
-    fun restoreRepo(repo: TrackedRepo, releases: List<Release>) {
+    fun deleteRepos(repos: List<TrackedRepo>) {
         viewModelScope.launch {
-            restoreRepositoryUseCase(repo, releases)
+            val results = repos.map { deleteRepositoryUseCase(it) }
+            _undoDeleteEvent.send(results)
+        }
+    }
+
+    fun restoreRepos(deletedItems: List<Pair<TrackedRepo, List<Release>>>) {
+        viewModelScope.launch {
+            deletedItems.forEach { (repo, releases) ->
+                restoreRepositoryUseCase(repo, releases)
+            }
         }
     }
 

@@ -3,7 +3,6 @@ package com.example.gittracker.ui.screens
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -57,6 +56,7 @@ fun MainScreen(
     onRepoClick: (TrackedRepo) -> Unit,
     onAddRepo: (String) -> Unit,
     onDeleteRepo: (TrackedRepo) -> Unit,
+    onDeleteRepos: (List<TrackedRepo>) -> Unit,
     onTogglePin: (TrackedRepo) -> Unit,
     onUpdateName: (TrackedRepo, String) -> Unit,
     onSearch: (String) -> Unit,
@@ -73,7 +73,6 @@ fun MainScreen(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedRepoForActions by remember { mutableStateOf<TrackedRepo?>(null) }
-    var repoIdToRename by remember { mutableStateOf<Long?>(null) }
     val sheetState = rememberModalBottomSheetState()
     
     val listState = rememberLazyListState()
@@ -143,8 +142,20 @@ fun MainScreen(
                 ),
                 actions = {
                     if (isSelectionMode) {
+                        val allIds = repositories.map { it.id }.toSet()
+                        val areAllSelected = selectedIds.size == repositories.size
+                        
                         IconButton(onClick = {
-                            repositories.filter { it.id in selectedIds }.forEach { onDeleteRepo(it) }
+                            selectedIds = if (areAllSelected) emptySet() else allIds
+                        }) {
+                            Icon(
+                                imageVector = if (areAllSelected) Icons.Default.Close else Icons.Default.Check,
+                                contentDescription = if (areAllSelected) "Deselect All" else "Select All"
+                            )
+                        }
+                        
+                        IconButton(onClick = {
+                            onDeleteRepos(repositories.filter { it.id in selectedIds })
                             selectedIds = emptySet()
                         }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete selected")
@@ -252,7 +263,6 @@ fun MainScreen(
                             RepoItem(
                                 repo = repo,
                                 isSelected = repo.id in selectedIds,
-                                isRenaming = repoIdToRename == repo.id,
                                 onToggleSelection = {
                                     selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
                                 },
@@ -266,12 +276,7 @@ fun MainScreen(
                                 onShowActions = {
                                     selectedRepoForActions = it
                                     showBottomSheet = true
-                                },
-                                onUpdateName = { r, n ->
-                                    onUpdateName(r, n)
-                                    repoIdToRename = null
-                                },
-                                onCancelRename = { repoIdToRename = null }
+                                }
                             )
                         }
                         item(key = "all_header") {
@@ -283,7 +288,6 @@ fun MainScreen(
                         RepoItem(
                             repo = repo,
                             isSelected = repo.id in selectedIds,
-                            isRenaming = repoIdToRename == repo.id,
                             onToggleSelection = {
                                 selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
                             },
@@ -297,12 +301,7 @@ fun MainScreen(
                             onShowActions = {
                                 selectedRepoForActions = it
                                 showBottomSheet = true
-                            },
-                            onUpdateName = { r, n ->
-                                onUpdateName(r, n)
-                                repoIdToRename = null
-                            },
-                            onCancelRename = { repoIdToRename = null }
+                            }
                         )
                     }
                 }
@@ -333,12 +332,13 @@ fun MainScreen(
             ) {
                 RepoActionBottomSheetContent(
                     repo = selectedRepoForActions!!,
+                    onUpdateName = onUpdateName,
                     onAction = { repoAction ->
                         showBottomSheet = false
                         when (repoAction) {
                             is RepoAction.Pin -> onTogglePin(selectedRepoForActions!!)
                             is RepoAction.Rename -> {
-                                repoIdToRename = selectedRepoForActions!!.id
+                                // Handled inside bottom sheet content
                             }
                             is RepoAction.Share -> {
                                 val sendIntent = Intent().apply {
@@ -368,8 +368,13 @@ sealed class RepoAction {
 @Composable
 fun RepoActionBottomSheetContent(
     repo: TrackedRepo,
+    onUpdateName: (TrackedRepo, String) -> Unit,
     onAction: (RepoAction) -> Unit
 ) {
+    var isRenaming by remember { mutableStateOf(false) }
+    var nameText by remember(repo.id) { mutableStateOf(repo.name) }
+    val focusRequester = remember { FocusRequester() }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -377,7 +382,9 @@ fun RepoActionBottomSheetContent(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_repo),
@@ -389,53 +396,96 @@ fun RepoActionBottomSheetContent(
             Text(
                 text = repo.name.ifBlank { repo.repoName },
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
             )
+            IconButton(onClick = { isRenaming = true }) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Rename",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
         
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-        
-        ListItem(
-            headlineContent = { Text(if (repo.isPinned) "Unpin" else "Pin") },
-            leadingContent = { 
-                Icon(
-                    if (repo.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                ) 
-            },
-            modifier = Modifier.clickable { onAction(RepoAction.Pin) }
-        )
 
-        ListItem(
-            headlineContent = { Text("Rename") },
-            leadingContent = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp)) },
-            modifier = Modifier.clickable { onAction(RepoAction.Rename) }
-        )
-        
-        ListItem(
-            headlineContent = { Text("Share") },
-            leadingContent = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(20.dp)) },
-            modifier = Modifier.clickable { onAction(RepoAction.Share) }
-        )
-        
-        ListItem(
-            headlineContent = { 
-                Text(
-                    text = "Delete", 
-                    color = MaterialTheme.colorScheme.error 
-                ) 
-            },
-            leadingContent = { 
-                Icon(
-                    Icons.Default.Delete, 
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp)
-                ) 
-            },
-            modifier = Modifier.clickable { onAction(RepoAction.Delete) }
-        )
+        if (isRenaming) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = { Text(repo.repoName) },
+                    singleLine = true,
+                    label = { Text("Rename Repository") },
+                    trailingIcon = {
+                        Row {
+                            IconButton(onClick = { 
+                                isRenaming = false
+                                nameText = repo.name 
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "Cancel")
+                            }
+                            IconButton(onClick = {
+                                onUpdateName(repo, nameText)
+                                onAction(RepoAction.Rename)
+                            }) {
+                                Icon(Icons.Default.Check, contentDescription = "Save", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                )
+                LaunchedEffect(Unit) {
+                    delay(100)
+                    focusRequester.requestFocus()
+                }
+            }
+        } else {
+            ListItem(
+                headlineContent = { Text(if (repo.isPinned) "Unpin" else "Pin") },
+                leadingContent = { 
+                    Icon(
+                        if (repo.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    ) 
+                },
+                modifier = Modifier.clickable { onAction(RepoAction.Pin) }
+            )
+            
+            ListItem(
+                headlineContent = { Text("Share") },
+                leadingContent = { Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                modifier = Modifier.clickable { onAction(RepoAction.Share) }
+            )
+            
+            ListItem(
+                headlineContent = { 
+                    Text(
+                        text = "Delete", 
+                        color = MaterialTheme.colorScheme.error 
+                    ) 
+                },
+                leadingContent = { 
+                    Icon(
+                        Icons.Default.Delete, 
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    ) 
+                },
+                modifier = Modifier.clickable { onAction(RepoAction.Delete) }
+            )
+        }
     }
 }
 
@@ -444,12 +494,9 @@ fun RepoActionBottomSheetContent(
 fun RepoItem(
     repo: TrackedRepo,
     isSelected: Boolean,
-    isRenaming: Boolean,
     onToggleSelection: () -> Unit,
     onClick: () -> Unit,
     onShowActions: (TrackedRepo) -> Unit,
-    onUpdateName: (TrackedRepo, String) -> Unit,
-    onCancelRename: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -459,6 +506,13 @@ fun RepoItem(
     } else {
         MaterialTheme.colorScheme.surface
     }
+
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+    }
+    val borderThickness = if (isSelected) 2.dp else 1.dp
 
     Surface(
         modifier = modifier
@@ -472,7 +526,7 @@ fun RepoItem(
             ),
         color = backgroundColor,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        border = BorderStroke(borderThickness, borderColor),
         tonalElevation = 0.dp
     ) {
         Column(
@@ -480,94 +534,55 @@ fun RepoItem(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            var nameText by remember(repo.id, repo.name) { mutableStateOf(repo.name) }
-            val focusRequester = remember { FocusRequester() }
-
-            if (isRenaming) {
-                LaunchedEffect(Unit) {
-                    var retries = 0
-                    while (retries < 10) {
-                        try {
-                            focusRequester.requestFocus()
-                            break
-                        } catch (e: Exception) {
-                            delay(100)
-                            retries++
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = nameText,
-                    onValueChange = { nameText = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    placeholder = { Text(repo.repoName) },
-                    singleLine = true,
-                    trailingIcon = {
-                        Row {
-                            IconButton(onClick = onCancelRename) {
-                                Icon(Icons.Default.Close, contentDescription = "Cancel")
-                            }
-                            IconButton(onClick = {
-                                onUpdateName(repo, nameText)
-                            }) {
-                                Icon(Icons.Default.Check, contentDescription = "Save")
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_repo),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = repo.name.ifBlank { repo.repoName },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            overflow = TextOverflow.Clip
-                        )
-                    }
-                    
-                    Box(
-                        modifier = Modifier.size(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (!isSelected) {
-                            IconButton(
-                                onClick = { onShowActions(repo) },
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Options",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_repo),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = repo.name.ifBlank { repo.repoName },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
+                }
+                
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!isSelected) {
+                        IconButton(
+                            onClick = { onShowActions(repo) },
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -673,7 +688,7 @@ fun MainSectionHeader(title: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         tonalElevation = 0.dp,
         shape = RoundedCornerShape(12.dp)
     ) {

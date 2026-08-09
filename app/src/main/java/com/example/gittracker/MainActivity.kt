@@ -164,14 +164,20 @@ fun AppNavigation(
     }
 
     LaunchedEffect(Unit) {
-        mainViewModel.undoDeleteEvent.collect { (repo, releases) ->
+        mainViewModel.undoDeleteEvent.collect { deletedItems ->
+            val message = if (deletedItems.size == 1) {
+                val repo = deletedItems.first().first
+                "Deleted ${repo.name.ifBlank { repo.repoName }}"
+            } else {
+                "Deleted ${deletedItems.size} repositories"
+            }
             val result = snackbarHostState.showSnackbar(
-                message = "Deleted ${repo.name.ifBlank { repo.repoName }}",
+                message = message,
                 actionLabel = "Undo",
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                mainViewModel.restoreRepo(repo, releases)
+                mainViewModel.restoreRepos(deletedItems)
             }
         }
     }
@@ -320,6 +326,7 @@ fun GitTrackerApp(
                 },
                 onAddRepo = { url -> viewModel.addRepo(url) },
                 onDeleteRepo = { repo -> viewModel.deleteRepo(repo) },
+                onDeleteRepos = { repos -> viewModel.deleteRepos(repos) },
                 onTogglePin = { repo -> viewModel.togglePin(repo) },
                 onUpdateName = { repo, name -> viewModel.updateRepoName(repo, name) },
                 onSearch = onSearch,

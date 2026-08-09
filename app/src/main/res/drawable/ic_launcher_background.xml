@@ -5,6 +5,8 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Base Gradient: Deep Modern Blue -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
@@ -18,17 +20,47 @@
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle grid/pattern - reverted to white for better contrast with white logo -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M54,0V108M0,54H108"
-        android:strokeWidth="1"
-        android:strokeAlpha="0.1"
-        android:strokeColor="#FFFFFF" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M27,0V108M81,0V108M0,27H108M0,81H108"
-        android:strokeWidth="0.5"
-        android:strokeAlpha="0.05"
-        android:strokeColor="#FFFFFF" />
+
+    <!-- Android 17 style 'Blur' Blobs (Ambient Mesh) -->
+    <path android:pathData="M27,27m-50,0a50,50 0 1,1 100,0a50,50 0 1,1 -100,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="27"
+                android:centerY="27"
+                android:gradientRadius="50"
+                android:type="radial">
+                <item android:offset="0" android:color="#40FFFFFF"/>
+                <item android:offset="1" android:color="#00FFFFFF"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M81,81m-50,0a50,50 0 1,1 100,0a50,50 0 1,1 -100,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="81"
+                android:centerY="81"
+                android:gradientRadius="50"
+                android:type="radial">
+                <item android:offset="0" android:color="#20000000"/>
+                <item android:offset="1" android:color="#00000000"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- iOS Glassmorphism "Frost" Overlay with Gradient -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item android:offset="0" android:color="#1AFFFFFF"/>
+                <item android:offset="1" android:color="#05FFFFFF"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
 </vector>

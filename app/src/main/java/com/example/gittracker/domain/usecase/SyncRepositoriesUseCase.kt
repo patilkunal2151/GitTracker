@@ -70,7 +70,16 @@ class SyncRepositoriesUseCase @Inject constructor(
                                 hasNewUpdate = true
                             )
                             repository.updateRepository(updatedRepo)
-                            notificationHelper.showUpdateNotification(updatedRepo)
+
+                            // Find best asset to download (prefer .apk)
+                            val bestAsset = latestRelease?.assets?.find { it.name.endsWith(".apk", ignoreCase = true) }
+                                ?: latestRelease?.assets?.firstOrNull()
+
+                            notificationHelper.showUpdateNotification(
+                                repo = updatedRepo,
+                                assetUrl = bestAsset?.downloadUrl,
+                                assetName = bestAsset?.name
+                            )
                         } else {
                             repository.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
                         }

@@ -68,7 +68,11 @@ class NotificationHelper @Inject constructor(
             .build()
     }
 
-    fun showUpdateNotification(repo: TrackedRepo) {
+    fun showUpdateNotification(
+        repo: TrackedRepo,
+        assetUrl: String? = null,
+        assetName: String? = null
+    ) {
         Log.d("NotificationHelper", "Showing notification for ${repo.repoName}")
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -79,7 +83,7 @@ class NotificationHelper @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle("Update for ${repo.repoName}")
             .setContentText("New version: ${repo.latestVersionTag}")
@@ -87,7 +91,20 @@ class NotificationHelper @Inject constructor(
             .setContentIntent(pendingIntent)
             .setGroup(GROUP_KEY)
             .setAutoCancel(true)
-            .build()
+
+        if (assetUrl != null && assetName != null) {
+            val downloadIntent = Intent(context, DownloadReceiver::class.java).apply {
+                putExtra("EXTRA_DOWNLOAD_URL", assetUrl)
+                putExtra("EXTRA_FILE_NAME", assetName)
+            }
+            val downloadPendingIntent = PendingIntent.getBroadcast(
+                context, repo.id.toInt() + 10000, downloadIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(R.drawable.ic_download, "Download", downloadPendingIntent)
+        }
+
+        notificationManager.notify(repo.id.toInt(), builder.build())
 
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
@@ -99,7 +116,6 @@ class NotificationHelper @Inject constructor(
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(repo.id.toInt(), notification)
         notificationManager.notify(SUMMARY_ID, summaryNotification)
     }
 }

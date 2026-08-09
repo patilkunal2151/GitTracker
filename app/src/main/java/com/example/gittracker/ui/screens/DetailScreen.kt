@@ -38,6 +38,7 @@ import com.example.gittracker.data.model.ReleaseAsset
 import com.example.gittracker.domain.model.Release
 import com.example.gittracker.domain.model.TrackedRepo
 import com.example.gittracker.util.DateUtils
+import com.example.gittracker.util.DownloadUtils
 import com.example.gittracker.util.UiUtils
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
@@ -104,7 +105,7 @@ fun DetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
                     tonalElevation = 0.dp
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -288,7 +289,7 @@ fun ReleaseItem(release: Release) {
             ) { expanded = !expanded },
         color = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
         tonalElevation = 0.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -299,13 +300,6 @@ fun ReleaseItem(release: Release) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_tag),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = release.tagName,
                             style = MaterialTheme.typography.titleSmall,
@@ -366,7 +360,7 @@ fun ReleaseItem(release: Release) {
                         
                         release.assets.forEach { asset ->
                             AssetRow(asset = asset, onDownload = {
-                                downloadFile(context, asset.downloadUrl, asset.name)
+                                DownloadUtils.downloadFile(context, asset.downloadUrl, asset.name)
                             })
                         }
                     }
@@ -403,7 +397,7 @@ fun AssetRow(asset: ReleaseAsset, onDownload: () -> Unit) {
         onClick = onDownload,
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         tonalElevation = 0.dp,
         modifier = Modifier.padding(vertical = 4.dp)
     ) {
@@ -433,17 +427,4 @@ fun AssetRow(asset: ReleaseAsset, onDownload: () -> Unit) {
             )
         }
     }
-}
-
-private fun downloadFile(context: Context, url: String, fileName: String) {
-    val request = DownloadManager.Request(Uri.parse(url))
-        .setTitle(fileName)
-        .setDescription("Downloading asset from GitHub")
-        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-        .setAllowedOverMetered(true)
-        .setAllowedOverRoaming(true)
-
-    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-    downloadManager.enqueue(request)
 }
