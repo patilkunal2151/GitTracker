@@ -75,7 +75,7 @@ class AppRepository @Inject constructor(
         )
         val repoId = dao.insertRepository(newRepo)
         
-        val releaseEntities = releases.take(5).map { rel ->
+        val releaseEntities = releases.map { rel ->
             ReleaseEntity(
                 repoId = repoId,
                 remoteId = rel.id,
@@ -164,13 +164,18 @@ class AppRepository @Inject constructor(
         return response?.body()?.items ?: emptyList()
     }
 
-    suspend fun getReadme(owner: String, repoName: String): String? {
+    suspend fun getReadme(repoId: Long, owner: String, repoName: String): String? {
+        val cachedRepo = dao.getRepositoryById(repoId)
+        if (cachedRepo?.readme != null) {
+            return cachedRepo.readme
+        }
+
         val response = try {
             apiService.getReadme(owner, repoName)
         } catch (_: Exception) {
             null
         }
-        return if (response?.isSuccessful == true) {
+        val content = if (response?.isSuccessful == true) {
             val readme = response.body()
             if (readme?.encoding == "base64") {
                 android.util.Base64.decode(readme.content.replace("\n", ""), android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
@@ -180,6 +185,12 @@ class AppRepository @Inject constructor(
         } else {
             null
         }
+
+        if (content != null && cachedRepo != null) {
+            dao.updateRepository(cachedRepo.copy(readme = content))
+        }
+
+        return content
     }
 
     suspend fun getRateLimitStatus(): Long? {

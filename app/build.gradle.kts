@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.devtools.ksp)
     alias(libs.plugins.jetbrains.kotlin.plugin.serialization)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 android {
@@ -98,6 +99,8 @@ dependencies {
     implementation(libs.compose.markdown)
     implementation(libs.converter.gson)
     implementation(libs.gson)
+
+    baselineProfile(project(":baselineprofile"))
 
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)

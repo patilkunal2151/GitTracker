@@ -52,10 +52,14 @@ class MainViewModel @Inject constructor(
 
     fun getReleases(repoId: Long): Flow<List<Release>> = getReleasesUseCase(repoId)
 
-    fun fetchReadme(owner: String, repoName: String) {
+    fun fetchReadme(repoId: Long, owner: String, repoName: String) {
         viewModelScope.launch {
-            _readme.value = getReadmeUseCase(owner, repoName)
+            _readme.value = getReadmeUseCase(repoId, owner, repoName)
         }
+    }
+
+    fun clearReadme() {
+        _readme.value = null
     }
 
     fun loadMoreReleases(repoId: Long) {

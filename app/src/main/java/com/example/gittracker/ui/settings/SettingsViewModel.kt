@@ -22,13 +22,16 @@ data class SettingsUiState(
     val nextSyncCountdown: String? = null,
     val isSyncing: Boolean = false,
     val isDetour: Boolean = false,
-    val isBatteryOptimized: Boolean = true
+    val isBatteryOptimized: Boolean = true,
+    val isTrackingSelf: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val scheduler: WorkManagerScheduler,
+    private val settingsManager: com.example.gittracker.data.local.SettingsManager,
+    private val toggleTrackSelfUseCase: com.example.gittracker.domain.usecase.ToggleTrackSelfUseCase,
     private val exportRepositoriesUseCase: ExportRepositoriesUseCase,
     private val importRepositoriesUseCase: ImportRepositoriesUseCase
 ) : ViewModel() {
@@ -48,8 +51,9 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         scheduler.workStatus,
-        ticker
-    ) { status, currentTime ->
+        ticker,
+        settingsManager.isTrackingSelf
+    ) { status, currentTime, isTrackingSelf ->
         var isSyncing = false
         var isDetour = false
         val countdown = if (status != null) {
@@ -85,7 +89,13 @@ class SettingsViewModel @Inject constructor(
             false
         }
 
-        SettingsUiState(countdown, isSyncing, isDetour, isBatteryOptimized = isOptimized)
+        SettingsUiState(
+            countdown, 
+            isSyncing, 
+            isDetour, 
+            isBatteryOptimized = isOptimized,
+            isTrackingSelf = isTrackingSelf
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -106,6 +116,18 @@ class SettingsViewModel @Inject constructor(
                 _messageEvent.send("Import completed successfully")
             } catch (e: Exception) {
                 _messageEvent.send("Failed to import repositories")
+            }
+        }
+    }
+
+    fun toggleTrackSelf(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                toggleTrackSelfUseCase(enabled)
+                val message = if (enabled) "Tracking Git Tracker" else "Untracked Git Tracker"
+                _messageEvent.send(message)
+            } catch (e: Exception) {
+                _messageEvent.send("Failed to update tracking")
             }
         }
     }

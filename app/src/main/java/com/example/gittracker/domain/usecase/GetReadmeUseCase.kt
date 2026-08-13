@@ -6,7 +6,7 @@ import javax.inject.Inject
 class GetReadmeUseCase @Inject constructor(
     private val repository: AppRepository
 ) {
-    suspend operator fun invoke(owner: String, repoName: String): String? {
-        return repository.getReadme(owner, repoName)
+    suspend operator fun invoke(repoId: Long, owner: String, repoName: String): String? {
+        return repository.getReadme(repoId, owner, repoName)
     }
 }

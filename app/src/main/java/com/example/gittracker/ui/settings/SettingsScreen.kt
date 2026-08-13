@@ -33,6 +33,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
+    onToggleTrackSelf: (Boolean) -> Unit,
     onBack: () -> Unit,
     snackbarHost: @Composable () -> Unit
 ) {
@@ -168,6 +169,22 @@ fun SettingsScreen(
                         Text("Disable Optimization", style = MaterialTheme.typography.labelLarge)
                     }
                 }
+            }
+            item {
+                SettingsSectionHeader("App Updates")
+            }
+            item {
+                SettingsItem(
+                    label = "Track Git Tracker Updates",
+                    description = "Follow releases of this app on the home screen.",
+                    onClick = { onToggleTrackSelf(!state.isTrackingSelf) },
+                    trailing = {
+                        OutlinedSwitch(
+                            checked = state.isTrackingSelf,
+                            onCheckedChange = onToggleTrackSelf
+                        )
+                    }
+                )
             }
             item {
                 SettingsSectionHeader(stringResource(R.string.data))
@@ -325,6 +342,27 @@ fun DetailedAboutSection() {
             }
         }
     }
+}
+
+@Composable
+fun OutlinedSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+            checkedTrackColor = MaterialTheme.colorScheme.primary,
+            checkedBorderColor = MaterialTheme.colorScheme.primary,
+            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+            uncheckedTrackColor = MaterialTheme.colorScheme.surface,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
 }
 
 @Composable

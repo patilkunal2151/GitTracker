@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Environment
 
 object DownloadUtils {
-    fun downloadFile(context: Context, url: String, fileName: String) {
+    fun downloadFile(context: Context, url: String, fileName: String): Long {
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle(fileName)
             .setDescription("Downloading asset from GitHub")
@@ -16,6 +16,6 @@ object DownloadUtils {
             .setAllowedOverRoaming(true)
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        downloadManager.enqueue(request)
+        return downloadManager.enqueue(request)
     }
 }

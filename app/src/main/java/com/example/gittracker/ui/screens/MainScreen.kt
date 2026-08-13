@@ -70,6 +70,14 @@ fun MainScreen(
     
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            delay(100) // Small delay to ensure the TextField is composed
+            searchFocusRequester.requestFocus()
+        }
+    }
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedRepoForActions by remember { mutableStateOf<TrackedRepo?>(null) }
@@ -103,7 +111,8 @@ fun MainScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(end = 8.dp),
+                                .padding(end = 8.dp)
+                                .focusRequester(searchFocusRequester),
                             placeholder = { Text("Search...") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),

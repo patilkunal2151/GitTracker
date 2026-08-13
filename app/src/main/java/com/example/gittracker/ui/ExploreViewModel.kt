@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 data class SearchRepo(
     val owner: String,
@@ -21,6 +22,7 @@ data class SearchRepo(
     val isLocal: Boolean
 )
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val repository: AppRepository,
@@ -37,6 +39,7 @@ class ExploreViewModel @Inject constructor(
     val showGitHubSearchPrompt = _showGitHubSearchPrompt.asStateFlow()
 
     private var allLocalRepos: List<TrackedRepo> = emptyList()
+    private val _searchQuery = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -44,9 +47,21 @@ class ExploreViewModel @Inject constructor(
                 allLocalRepos = it
             }
         }
+
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(300.milliseconds)
+                .collect { query ->
+                    performSearch(query)
+                }
+        }
     }
 
     fun search(query: String) {
+        _searchQuery.value = query
+    }
+
+    private fun performSearch(query: String) {
         if (query.isBlank()) {
             _searchResults.value = emptyList()
             _showGitHubSearchPrompt.value = false

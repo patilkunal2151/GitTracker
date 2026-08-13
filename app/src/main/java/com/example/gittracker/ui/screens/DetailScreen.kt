@@ -51,12 +51,16 @@ fun DetailScreen(
     isLoadingMore: Boolean,
     onBack: () -> Unit,
     onLoadMore: (Long) -> Unit,
-    onFetchReadme: () -> Unit,
+    onFetchReadme: (Long, String, String) -> Unit,
     onShowSnackbar: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Releases", "README")
+
+    LaunchedEffect(repo?.id) {
+        selectedTab = 0
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -191,7 +195,7 @@ fun DetailScreen(
                             selected = selectedTab == index,
                             onClick = { 
                                 selectedTab = index 
-                                if (index == 1) onFetchReadme()
+                                if (index == 1) repo?.let { onFetchReadme(it.id, it.owner, it.repoName) }
                             },
                             text = { 
                                 Text(

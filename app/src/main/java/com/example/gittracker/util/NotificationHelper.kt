@@ -96,6 +96,7 @@ class NotificationHelper @Inject constructor(
             val downloadIntent = Intent(context, DownloadReceiver::class.java).apply {
                 putExtra("EXTRA_DOWNLOAD_URL", assetUrl)
                 putExtra("EXTRA_FILE_NAME", assetName)
+                putExtra("EXTRA_REPO_ID", repo.id)
             }
             val downloadPendingIntent = PendingIntent.getBroadcast(
                 context, repo.id.toInt() + 10000, downloadIntent,

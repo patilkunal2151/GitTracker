@@ -13,5 +13,6 @@ data class TrackedRepo(
     val description: String? = null,
     val stargazersCount: Int = 0,
     val forksCount: Int = 0,
-    val language: String? = null
+    val language: String? = null,
+    val readme: String? = null
 )

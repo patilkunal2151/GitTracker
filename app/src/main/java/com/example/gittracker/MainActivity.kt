@@ -16,7 +16,6 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.*
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -25,6 +24,7 @@ import com.example.gittracker.domain.model.TrackedRepo
 import com.example.gittracker.ui.MainViewModel
 import com.example.gittracker.ui.ExploreViewModel
 import com.example.gittracker.ui.components.StyledSnackbarHost
+import com.example.gittracker.ui.navigation.NavRoute
 import com.example.gittracker.ui.screens.DetailScreen
 import com.example.gittracker.ui.screens.MainScreen
 import com.example.gittracker.ui.settings.SettingsScreen
@@ -32,6 +32,8 @@ import com.example.gittracker.ui.settings.SettingsViewModel
 import com.example.gittracker.ui.theme.GitTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.Home
@@ -42,23 +44,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.NavEntry
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val deepLinkRepoId = mutableStateOf<Long?>(null)
+    private val _deepLinkRepoId = MutableStateFlow<Long?>(null)
+    private val deepLinkRepoId = _deepLinkRepoId.asStateFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        deepLinkRepoId.value = intent.getLongExtra("EXTRA_REPO_ID", -1L).takeIf { it != -1L }
+        _deepLinkRepoId.value = intent.getLongExtra("EXTRA_REPO_ID", -1L).takeIf { it != -1L }
         
         enableEdgeToEdge()
         setContent {
             GitTrackerTheme {
+                val repoId by deepLinkRepoId.collectAsState()
                 AppNavigation(
-                    repoId = deepLinkRepoId.value,
-                    onDeepLinkConsumed = { deepLinkRepoId.value = null }
+                    repoId = repoId,
+                    onDeepLinkConsumed = { _deepLinkRepoId.value = null }
                 )
             }
         }
@@ -67,24 +76,28 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        deepLinkRepoId.value = intent.getLongExtra("EXTRA_REPO_ID", -1L).takeIf { it != -1L }
+        _deepLinkRepoId.value = intent.getLongExtra("EXTRA_REPO_ID", -1L).takeIf { it != -1L }
     }
 }
-
-enum class AppScreen { Home, Settings }
 
 @Composable
 fun AppNavigation(
     repoId: Long?,
     onDeepLinkConsumed: () -> Unit
 ) {
+    val backstack = rememberNavBackStack(NavRoute.RepoList)
+
+    LaunchedEffect(repoId) {
+        if (repoId != null) {
+            backstack.setBackstack(listOf(NavRoute.RepoList, NavRoute.RepoDetail(repoId)))
+        }
+    }
+
     val mainViewModel: MainViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val exploreViewModel: ExploreViewModel = hiltViewModel()
     
-    var currentScreen by remember { mutableStateOf(AppScreen.Home) }
     var isSearching by remember { mutableStateOf(false) }
-    var selectedRepoIdForNavigation by remember { mutableStateOf<Long?>(null) }
     var homeResetSignal by remember { mutableLongStateOf(0L) }
     
     val context = LocalContext.current
@@ -109,7 +122,7 @@ fun AppNavigation(
             uri?.let {
                 val json = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { it.readText() }
                 json?.let { 
-                    currentScreen = AppScreen.Home
+                    backstack.setBackstack(listOf(NavRoute.RepoList))
                     settingsViewModel.importRepositories(it) 
                 }
             }
@@ -194,22 +207,21 @@ fun AppNavigation(
                     indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 )
                 NavigationBarItem(
-                    selected = currentScreen == AppScreen.Home && !isSearching,
+                    selected = backstack.lastOrNull() is NavRoute.RepoList || backstack.lastOrNull() is NavRoute.RepoDetail,
                     onClick = { 
-                        if (currentScreen == AppScreen.Home && !isSearching) {
+                        if (backstack.lastOrNull() is NavRoute.RepoList && !isSearching) {
                             homeResetSignal = System.currentTimeMillis()
                         }
-                        currentScreen = AppScreen.Home
+                        backstack.setBackstack(listOf(NavRoute.RepoList))
                         isSearching = false
-                        selectedRepoIdForNavigation = null
                     },
                     icon = { Icon(Icons.Default.Home, null) },
                     label = { Text("Home") },
                     colors = navBarColors
                 )
                 NavigationBarItem(
-                    selected = currentScreen == AppScreen.Settings,
-                    onClick = { currentScreen = AppScreen.Settings },
+                    selected = backstack.lastOrNull() is NavRoute.Settings,
+                    onClick = { backstack.setBackstack(listOf(NavRoute.RepoList, NavRoute.Settings)) },
                     icon = { Icon(Icons.Default.Settings, null) },
                     label = { Text("Settings") },
                     colors = navBarColors
@@ -220,45 +232,81 @@ fun AppNavigation(
         snackbarHost = { StyledSnackbarHost(snackbarHostState) }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
-            when (currentScreen) {
-                AppScreen.Home -> {
-                    val searchResults by exploreViewModel.searchResults.collectAsState()
-                    val isSearchingRemote by exploreViewModel.isSearching.collectAsState()
-                    val showGitHubPrompt by exploreViewModel.showGitHubSearchPrompt.collectAsState()
-                    
-                    GitTrackerApp(
-                        viewModel = mainViewModel,
-                        repoId = selectedRepoIdForNavigation ?: repoId,
-                        searchResults = searchResults,
-                        isSearchingRemote = isSearchingRemote,
-                        showGitHubPrompt = showGitHubPrompt,
-                        resetSignal = homeResetSignal,
-                        onSearch = exploreViewModel::search,
-                        onSearchGitHub = exploreViewModel::searchGitHub,
-                        onShowSnackbar = { message ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar(message)
-                            }
-                        },
-                        onDeepLinkConsumed = { 
-                            selectedRepoIdForNavigation = null
-                            onDeepLinkConsumed() 
+            NavDisplay(
+                backStack = backstack,
+                onBack = { backstack.popBackstack() }
+            ) { route ->
+                NavEntry(route) { currentRoute ->
+                    when (currentRoute) {
+                        is NavRoute.RepoList -> {
+                            val searchResults by exploreViewModel.searchResults.collectAsState()
+                            val isSearchingRemote by exploreViewModel.isSearching.collectAsState()
+                            val showGitHubPrompt by exploreViewModel.showGitHubSearchPrompt.collectAsState()
+                            
+                            GitTrackerApp(
+                                viewModel = mainViewModel,
+                                repoId = null,
+                                searchResults = searchResults,
+                                isSearchingRemote = isSearchingRemote,
+                                showGitHubPrompt = showGitHubPrompt,
+                                resetSignal = homeResetSignal,
+                                onSearch = exploreViewModel::search,
+                                onSearchGitHub = exploreViewModel::searchGitHub,
+                                onShowSnackbar = { message ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(message)
+                                    }
+                                },
+                                onDeepLinkConsumed = onDeepLinkConsumed
+                            )
                         }
-                    )
-                }
-                AppScreen.Settings -> {
-                    val state by settingsViewModel.uiState.collectAsState()
-                    SettingsScreen(
-                        state = state,
-                        onExportClick = settingsViewModel::exportRepositories,
-                        onImportClick = { importLauncher.launch("application/json") },
-                        onBack = { currentScreen = AppScreen.Home },
-                        snackbarHost = { /* Handled by Scaffold */ }
-                    )
+                        is NavRoute.RepoDetail -> {
+                            val searchResults by exploreViewModel.searchResults.collectAsState()
+                            val isSearchingRemote by exploreViewModel.isSearching.collectAsState()
+                            val showGitHubPrompt by exploreViewModel.showGitHubSearchPrompt.collectAsState()
+                            
+                            GitTrackerApp(
+                                viewModel = mainViewModel,
+                                repoId = currentRoute.repoId,
+                                searchResults = searchResults,
+                                isSearchingRemote = isSearchingRemote,
+                                showGitHubPrompt = showGitHubPrompt,
+                                resetSignal = homeResetSignal,
+                                onSearch = exploreViewModel::search,
+                                onSearchGitHub = exploreViewModel::searchGitHub,
+                                onShowSnackbar = { message ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(message)
+                                    }
+                                },
+                                onDeepLinkConsumed = onDeepLinkConsumed
+                            )
+                        }
+                        is NavRoute.Settings -> {
+                            val state by settingsViewModel.uiState.collectAsState()
+                            SettingsScreen(
+                                state = state,
+                                onExportClick = settingsViewModel::exportRepositories,
+                                onImportClick = { importLauncher.launch("application/json") },
+                                onToggleTrackSelf = settingsViewModel::toggleTrackSelf,
+                                onBack = { backstack.popBackstack() },
+                                snackbarHost = { /* Handled by Scaffold */ }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+fun <T : NavKey> NavBackStack<T>.setBackstack(elements: List<T>) {
+    clear()
+    addAll(elements)
+}
+
+fun <T : NavKey> NavBackStack<T>.popBackstack() {
+    if (isNotEmpty()) removeAt(size - 1)
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -339,6 +387,10 @@ fun GitTrackerApp(
             val isLoadingMore by viewModel.isLoadingMore.collectAsState()
             val readme by viewModel.readme.collectAsState()
 
+            LaunchedEffect(selectedId) {
+                viewModel.clearReadme()
+            }
+
             val releases by (if (selectedId != null) {
                 viewModel.getReleases(selectedId)
             } else {
@@ -356,8 +408,8 @@ fun GitTrackerApp(
                     }
                 },
                 onLoadMore = { id -> viewModel.loadMoreReleases(id) },
-                onFetchReadme = {
-                    selectedRepo?.let { viewModel.fetchReadme(it.owner, it.repoName) }
+                onFetchReadme = { id, owner, repoName ->
+                    viewModel.fetchReadme(id, owner, repoName)
                 },
                 onShowSnackbar = onShowSnackbar
             )

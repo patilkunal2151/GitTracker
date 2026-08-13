@@ -10,4 +10,11 @@ class MarkAsReadUseCase @Inject constructor(
     suspend operator fun invoke(repo: TrackedRepo) {
         repository.updateRepository(repo.copy(hasNewUpdate = false))
     }
+
+    suspend operator fun invoke(repoId: Long) {
+        val repo = repository.getRepositoryById(repoId)
+        if (repo != null) {
+            invoke(repo)
+        }
+    }
 }
