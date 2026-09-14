@@ -70,108 +70,139 @@ fun SettingsScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                SettingsSectionHeader(stringResource(R.string.background_sync))
-            }
-            item {
-                SettingsItem(
-                    label = "Automatic Update Check",
-                    description = if (state.isDetour) 
-                        "GitHub rate limit hit. Waiting for reset." 
-                        else "The GitHub rate limit is checked every hour before syncing new releases.",
-                    onClick = { },
-                    trailing = if (state.isSyncing) {
-                        {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Syncing",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    } else null
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                )
-                Row(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                    tonalElevation = 0.dp
                 ) {
-                    Text(
-                        text = if (state.isDetour) "Quota resets in:" else "Next check in:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
-                        border = BorderStroke(0.5.dp, (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = state.nextSyncCountdown ?: "Calculating...",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-            item {
-                SettingsSectionHeader("Background Reliability")
-            }
-            item {
-                SettingsItem(
-                    label = "Battery Optimization",
-                    description = if (state.isBatteryOptimized) 
-                        "Currently optimized. This may cause delays in update checks after a few days." 
-                        else "Optimization disabled. Background sync will be highly reliable.",
-                    onClick = {
-                        if (state.isBatteryOptimized) {
-                            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:${context.packageName}")
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Automatic Update Check",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (state.isDetour) 
+                                        "GitHub rate limit hit. Waiting for reset." 
+                                        else "The GitHub rate limit is checked every hour before syncing new releases.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                // Fallback to general battery settings if direct request fails
-                                context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            if (state.isSyncing) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Syncing",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (state.isDetour) "Quota resets in:" else "Next check in:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
+                                border = BorderStroke(0.5.dp, (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = state.nextSyncCountdown ?: "Calculating...",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
                             }
                         }
                     }
-                )
-                if (state.isBatteryOptimized) {
-                    TextButton(
-                        onClick = {
-                            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                            }
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                            }
-                        },
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Text("Disable Optimization", style = MaterialTheme.typography.labelLarge)
-                    }
                 }
             }
             item {
-                SettingsSectionHeader("App Updates")
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clickable {
+                            if (state.isBatteryOptimized) {
+                                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                }
+                            }
+                        },
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                    tonalElevation = 0.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Battery Optimization",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (state.isBatteryOptimized) 
+                                "Currently optimized. This may cause delays in update checks after a few days." 
+                                else "Optimization disabled. Background sync will be highly reliable.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (state.isBatteryOptimized) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = {
+                                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("Disable Optimization", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
             }
             item {
                 SettingsItem(
@@ -187,18 +218,13 @@ fun SettingsScreen(
                 )
             }
             item {
-                SettingsSectionHeader(stringResource(R.string.data))
-            }
-            item {
                 SettingsItem(
                     label = stringResource(R.string.export_data),
                     description = stringResource(R.string.export_description),
                     onClick = onExportClick
                 )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                )
+            }
+            item {
                 SettingsItem(
                     label = stringResource(R.string.import_data),
                     description = stringResource(R.string.import_description),
@@ -209,9 +235,6 @@ fun SettingsScreen(
                 DetailedAboutSection()
             }
             item {
-                SettingsSectionHeader(stringResource(R.string.links))
-            }
-            item {
                 SettingsItem(
                     label = stringResource(R.string.source_code),
                     description = stringResource(R.string.visit_github),
@@ -220,10 +243,8 @@ fun SettingsScreen(
                         context.startActivity(intent)
                     }
                 )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                )
+            }
+            item {
                 SettingsItem(
                     label = stringResource(R.string.report_issue),
                     description = stringResource(R.string.report_issue),
@@ -254,13 +275,14 @@ fun DetailedAboutSection() {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) { isExpanded = !isExpanded },
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         tonalElevation = 0.dp
     ) {
         Column(
@@ -373,17 +395,23 @@ fun SettingsItem(
     trailing: @Composable (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    Box(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() }
-            .padding(16.dp)
+            ) { onClick() },
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+        tonalElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -405,23 +433,5 @@ fun SettingsItem(
                 trailing()
             }
         }
-    }
-}
-
-@Composable
-fun SettingsSectionHeader(title: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
-        tonalElevation = 0.dp,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        )
     }
 }

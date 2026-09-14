@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gittracker.R
@@ -50,7 +51,7 @@ fun ExploreScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
             OutlinedTextField(
                 value = query,
@@ -61,7 +62,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp),
-                placeholder = { Text("Search repositories...") },
+                placeholder = { Text(stringResource(R.string.search_repositories)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
@@ -69,7 +70,7 @@ fun ExploreScreen(
                             query = "" 
                             onSearch("")
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search))
                         }
                     }
                 },
@@ -100,7 +101,7 @@ fun ExploreScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "No local results found.",
+                    text = stringResource(R.string.no_local_results),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -109,12 +110,12 @@ fun ExploreScreen(
                     onClick = { onSearchGitHub(query) },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Search on GitHub")
+                    Text(stringResource(R.string.search_on_github))
                 }
             }
         } else if (searchResults.isEmpty() && query.isNotEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No repositories found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.no_repos_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
@@ -167,7 +168,7 @@ fun ExploreRepoItem(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
                     ) {
                         Text(
-                            text = "Tracked",
+                            text = stringResource(R.string.tracked),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

@@ -40,16 +40,11 @@ fun AddRepoDialog(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        // More robust focus request: retry until initialized or timeout
-        var retries = 0
-        while (retries < 10) {
-            try {
-                focusRequester.requestFocus()
-                break
-            } catch (e: Exception) {
-                delay(100)
-                retries++
-            }
+        delay(200)
+        try {
+            focusRequester.requestFocus()
+        } catch (_: Exception) {
+            // Ignore if layout node is not ready
         }
     }
 

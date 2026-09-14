@@ -346,12 +346,21 @@ fun ReleaseItem(release: Release) {
             }
 
             if (expanded) {
+                android.util.Log.d("DetailScreen", "Release ${release.tagName} changelog len=${release.changelog.length}, preview=${release.changelog.take(100)}")
                 Column(modifier = Modifier.padding(top = 16.dp)) {
-                    MarkdownText(
-                        markdown = release.changelog,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    if (release.changelog.isNotBlank()) {
+                        MarkdownText(
+                            markdown = release.changelog,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else {
+                        Text(
+                            text = "No changelog provided for this release.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     
                     if (release.assets.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(24.dp))

@@ -41,6 +41,20 @@ interface GitHubApiService {
 
     @GET("rate_limit")
     suspend fun getRateLimit(): Response<GitHubRateLimit>
+
+    @GET("repos/{owner}/{repo}/git/ref/tags/{tag}")
+    suspend fun getTagRef(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("tag") tag: String
+    ): Response<GitHubRefResponse>
+
+    @GET("repos/{owner}/{repo}/git/commits/{sha}")
+    suspend fun getCommitDetails(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("sha") sha: String
+    ): Response<GitHubCommitResponse>
 }
 
 data class GitHubSearchResponse(
@@ -54,4 +68,19 @@ data class GitHubSearchResponse(
 data class GitHubReadme(
     val content: String,
     val encoding: String
+)
+
+data class GitHubRefResponse(
+    val ref: String,
+    @SerializedName("object")
+    val objectInfo: GitHubRefObject
+)
+
+data class GitHubRefObject(
+    val sha: String,
+    val type: String
+)
+
+data class GitHubCommitResponse(
+    val message: String
 )

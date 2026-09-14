@@ -14,6 +14,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     getTrackedRepositoriesUseCase: GetTrackedRepositoriesUseCase,
+    private val repository: com.example.gittracker.data.repository.AppRepository,
     private val addRepositoryUseCase: AddRepositoryUseCase,
     private val deleteRepositoryUseCase: DeleteRepositoryUseCase,
     private val togglePinUseCase: TogglePinUseCase,
@@ -50,7 +51,12 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    fun getReleases(repoId: Long): Flow<List<Release>> = getReleasesUseCase(repoId)
+    fun getReleases(repoId: Long): Flow<List<Release>> {
+        viewModelScope.launch {
+            repository.checkAndFixMissingChangelogs(repoId)
+        }
+        return getReleasesUseCase(repoId)
+    }
 
     fun fetchReadme(repoId: Long, owner: String, repoName: String) {
         viewModelScope.launch {

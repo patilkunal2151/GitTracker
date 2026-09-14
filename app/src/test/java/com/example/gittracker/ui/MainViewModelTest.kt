@@ -27,6 +27,7 @@ class MainViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private val getTrackedRepositoriesUseCase: GetTrackedRepositoriesUseCase = mockk()
+    private val repository: com.example.gittracker.data.repository.AppRepository = mockk(relaxed = true)
     private val addRepositoryUseCase: AddRepositoryUseCase = mockk(relaxed = true)
     private val deleteRepositoryUseCase: DeleteRepositoryUseCase = mockk(relaxed = true)
     private val togglePinUseCase: TogglePinUseCase = mockk(relaxed = true)
@@ -35,6 +36,7 @@ class MainViewModelTest {
     private val restoreRepositoryUseCase: RestoreRepositoryUseCase = mockk(relaxed = true)
     private val fetchMoreReleasesUseCase: FetchMoreReleasesUseCase = mockk(relaxed = true)
     private val getReleasesUseCase: GetReleasesUseCase = mockk(relaxed = true)
+    private val getReadmeUseCase: GetReadmeUseCase = mockk(relaxed = true)
 
     private lateinit var viewModel: MainViewModel
 
@@ -45,6 +47,7 @@ class MainViewModelTest {
         
         viewModel = MainViewModel(
             getTrackedRepositoriesUseCase,
+            repository,
             addRepositoryUseCase,
             deleteRepositoryUseCase,
             togglePinUseCase,
@@ -52,7 +55,8 @@ class MainViewModelTest {
             updateRepositoryNameUseCase,
             restoreRepositoryUseCase,
             fetchMoreReleasesUseCase,
-            getReleasesUseCase
+            getReleasesUseCase,
+            getReadmeUseCase
         )
     }
 
@@ -89,8 +93,8 @@ class MainViewModelTest {
         viewModel.undoDeleteEvent.test {
             viewModel.deleteRepo(repo)
             val result = awaitItem()
-            assertEquals(repo, result.first)
-            assertEquals(releases, result.second)
+            assertEquals(repo, result.first().first)
+            assertEquals(releases, result.first().second)
         }
     }
 

@@ -1,8 +1,10 @@
 package com.example.gittracker.data.repository
 
+import android.util.Log
 import com.example.gittracker.data.local.RepositoryDao
 import com.example.gittracker.data.mapper.toDomain
 import com.example.gittracker.data.mapper.toEntity
+import com.example.gittracker.data.model.GitHubRelease
 import com.example.gittracker.data.model.GitHubRepo
 import com.example.gittracker.data.model.ReleaseEntity
 import com.example.gittracker.data.model.TrackedRepository
@@ -16,6 +18,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "AppRepository"
 
 @Singleton
 class AppRepository @Inject constructor(
@@ -41,16 +45,23 @@ class AppRepository @Inject constructor(
     suspend fun addRepository(owner: String, repoName: String, name: String = "", isPinned: Boolean = false) {
         val repoDetailsResponse = try {
             apiService.getRepoDetails(owner, repoName)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get repository details for $owner/$repoName", e)
             null
         }
         val repoDetails = repoDetailsResponse?.body()
 
         val releasesResponse = try { 
             apiService.getReleases(owner, repoName, perPage = 10, page = 1) 
-        } catch (_: Exception) { 
+        } catch (e: Exception) { 
+            Log.e(TAG, "Failed to get releases for $owner/$repoName", e)
             null 
         }
+
+        if (releasesResponse?.code() == 403 || repoDetailsResponse?.code() == 403) {
+            throw IllegalStateException("GitHub API rate limit reached. Please try again later.")
+        }
+
         val releases = releasesResponse?.body() ?: emptyList()
 
         if (releases.isEmpty()) {
@@ -80,7 +91,7 @@ class AppRepository @Inject constructor(
                 repoId = repoId,
                 remoteId = rel.id,
                 tagName = rel.tagName,
-                changelog = rel.body ?: "No changelog provided.",
+                changelog = getChangelogWithFallback(owner, repoName, rel),
                 htmlUrl = rel.htmlUrl,
                 createdAt = DateUtils.parseGithubDate(rel.publishedAt),
                 isPrerelease = rel.isPrerelease,
@@ -89,6 +100,29 @@ class AppRepository @Inject constructor(
         }
         
         dao.insertReleases(releaseEntities)
+    }
+
+    private suspend fun getChangelogWithFallback(owner: String, repoName: String, rel: GitHubRelease): String {
+        if (!rel.body.isNullOrBlank()) {
+            return rel.body
+        }
+        return try {
+            val refResponse = apiService.getTagRef(owner, repoName, rel.tagName)
+            if (refResponse.isSuccessful && refResponse.body() != null) {
+                val sha = refResponse.body()!!.objectInfo.sha
+                val commitResponse = apiService.getCommitDetails(owner, repoName, sha)
+                if (commitResponse.isSuccessful && !commitResponse.body()?.message.isNullOrBlank()) {
+                    commitResponse.body()!!.message
+                } else {
+                    "No changelog provided."
+                }
+            } else {
+                "No changelog provided."
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch commit body fallback for tag ${rel.tagName}", e)
+            "No changelog provided."
+        }
     }
 
     suspend fun deleteRepository(repo: TrackedRepo) {
@@ -113,7 +147,8 @@ class AppRepository @Inject constructor(
         
         val newReleasesResponse = try { 
             apiService.getReleases(repo.owner, repo.repoName, perPage = 10, page = nextPage) 
-        } catch (_: Exception) { 
+        } catch (e: Exception) { 
+            Log.e(TAG, "Failed to fetch more releases for repo ${repo.id}", e)
             null 
         }
         val newReleases = newReleasesResponse?.body() ?: emptyList()
@@ -138,7 +173,7 @@ class AppRepository @Inject constructor(
                         repoId = repoId,
                         remoteId = rel.id,
                         tagName = rel.tagName,
-                        changelog = rel.body ?: "No changelog provided.",
+                        changelog = getChangelogWithFallback(repo.owner, repo.repoName, rel),
                         htmlUrl = rel.htmlUrl,
                         createdAt = DateUtils.parseGithubDate(rel.publishedAt),
                         isPrerelease = rel.isPrerelease,
@@ -158,7 +193,8 @@ class AppRepository @Inject constructor(
     suspend fun searchRepositories(query: String): List<GitHubRepo> {
         val response = try {
             apiService.searchRepositories(query)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Search repositories failed for query: $query", e)
             null
         }
         return response?.body()?.items ?: emptyList()
@@ -172,7 +208,8 @@ class AppRepository @Inject constructor(
 
         val response = try {
             apiService.getReadme(owner, repoName)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch README for $owner/$repoName", e)
             null
         }
         val content = if (response?.isSuccessful == true) {
@@ -206,12 +243,45 @@ class AppRepository @Inject constructor(
             } else {
                 null
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get rate limit status", e)
             null
         }
     }
 
     suspend fun saveReleases(releases: List<Release>) {
         dao.insertReleases(releases.map { it.toEntity() })
+    }
+
+    suspend fun checkAndFixMissingChangelogs(repoId: Long) {
+        try {
+            val repo = dao.getRepositoryById(repoId) ?: return
+            val releases = dao.getReleasesSync(repoId)
+            val missingChangelogs = releases.filter { it.changelog.isBlank() || it.changelog == "No changelog provided." }
+            if (missingChangelogs.isNotEmpty()) {
+                val response = try {
+                    apiService.getReleases(repo.owner, repo.repoName, perPage = 30)
+                } catch (_: Exception) { null }
+                val networkReleases = response?.body() ?: return
+                var updatedAny = false
+                val updatedEntities = releases.map { entity ->
+                    if (entity.changelog.isBlank() || entity.changelog == "No changelog provided.") {
+                        val matchingNetRel = networkReleases.find { it.id == entity.remoteId }
+                        if (matchingNetRel != null) {
+                            val fallbackChangelog = getChangelogWithFallback(repo.owner, repo.repoName, matchingNetRel)
+                            if (fallbackChangelog != entity.changelog && fallbackChangelog != "No changelog provided.") {
+                                updatedAny = true
+                                entity.copy(changelog = fallbackChangelog)
+                            } else entity
+                        } else entity
+                    } else entity
+                }
+                if (updatedAny) {
+                    dao.insertReleases(updatedEntities)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to check/fix missing changelogs for repo $repoId", e)
+        }
     }
 }

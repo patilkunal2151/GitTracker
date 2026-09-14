@@ -38,4 +38,10 @@
     <string name="app_version">Version</string>
     <string name="developer">Built by patilkunal2151</string>
     <string name="made_with">Crafted with ❤️ and AI Innovation</string>
+    <string name="search_repositories">Search repositories...</string>
+    <string name="clear_search">Clear search</string>
+    <string name="no_local_results">No local results found.</string>
+    <string name="search_on_github">Search on GitHub</string>
+    <string name="no_repos_found">No repositories found</string>
+    <string name="tracked">Tracked</string>
 </resources>

@@ -84,8 +84,8 @@ class SyncRepositoriesUseCase @Inject constructor(
                             repository.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
                         }
                     }
-                } catch (_: Exception) {
-                    android.util.Log.e("SyncUseCase", "Error updating ${repo.repoName}")
+                } catch (e: Exception) {
+                    android.util.Log.e("SyncUseCase", "Error updating ${repo.repoName}", e)
                 }
             }
             SyncResult.Success
