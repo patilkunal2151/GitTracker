@@ -33,7 +33,7 @@ object NetworkModule {
     fun provideCommonHeadersInterceptor(): Interceptor {
         return Interceptor { chain ->
             val request = chain.request().newBuilder()
-                .header("User-Agent", "GitTrackerApp/2.3.0")
+                .header("User-Agent", "GitTrackerApp/2.4.0")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
             chain.proceed(request)
