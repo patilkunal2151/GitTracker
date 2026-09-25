@@ -1,6 +1,5 @@
 package com.example.gittracker.ui.screens
 
-import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -168,6 +167,54 @@ fun DetailScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                 overflow = TextOverflow.Ellipsis,
                                 maxLines = 1
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!repo.language.isNullOrBlank()) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = UiUtils.getLanguageColor(repo.language),
+                                    modifier = Modifier.size(10.dp)
+                                ) {}
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = repo.language,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                            }
+
+                            Icon(
+                                painter = painterResource(R.drawable.ic_star),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = UiUtils.formatCount(repo.stargazersCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Icon(
+                                painter = painterResource(R.drawable.ic_fork),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = UiUtils.formatCount(repo.forksCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

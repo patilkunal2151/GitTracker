@@ -44,11 +44,23 @@ class MainViewModel @Inject constructor(
     private val _undoDeleteEvent = Channel<List<Pair<TrackedRepo, List<Release>>>>(Channel.BUFFERED)
     val undoDeleteEvent: Flow<List<Pair<TrackedRepo, List<Release>>>> = _undoDeleteEvent.receiveAsFlow()
 
+    private val _isLoadingRepositories = MutableStateFlow(true)
+    val isLoadingRepositories = _isLoadingRepositories.asStateFlow()
+
     val uiState: StateFlow<List<TrackedRepo>> = getTrackedRepositoriesUseCase()
+        .onEach { _isLoadingRepositories.value = false }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
+        )
+
+    val releasesMap: StateFlow<Map<Long, List<Release>>> = repository.getAllReleases()
+        .map { list -> list.groupBy { it.repoId } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
         )
 
     fun getReleases(repoId: Long): Flow<List<Release>> {

@@ -14,5 +14,9 @@ data class TrackedRepo(
     val stargazersCount: Int = 0,
     val forksCount: Int = 0,
     val language: String? = null,
-    val readme: String? = null
-)
+    val readme: String? = null,
+    val topics: String? = ""
+) {
+    val topicsList: List<String>
+        get() = topics?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+}

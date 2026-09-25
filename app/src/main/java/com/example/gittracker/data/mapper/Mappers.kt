@@ -19,7 +19,8 @@ fun TrackedRepository.toDomain(): TrackedRepo = TrackedRepo(
     stargazersCount = stargazersCount,
     forksCount = forksCount,
     language = language,
-    readme = readme
+    readme = readme,
+    topics = topics
 )
 
 fun TrackedRepo.toEntity(): TrackedRepository = TrackedRepository(
@@ -36,7 +37,8 @@ fun TrackedRepo.toEntity(): TrackedRepository = TrackedRepository(
     stargazersCount = stargazersCount,
     forksCount = forksCount,
     language = language,
-    readme = readme
+    readme = readme,
+    topics = topics
 )
 
 fun ReleaseEntity.toDomain(): Release = Release(

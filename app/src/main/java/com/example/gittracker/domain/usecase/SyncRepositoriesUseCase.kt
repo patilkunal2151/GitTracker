@@ -56,33 +56,34 @@ class SyncRepositoriesUseCase @Inject constructor(
                     
                     if (latestId != repo.latestReleaseId && latestId != 0L) {
                         val existingReleases = repository.getReleasesSync(repo.id)
-                        val existingRemoteIds = existingReleases.map { it.remoteId }.toSet()
+                        val fetchedRemoteIds = releases.map { it.id }.toSet()
 
-                        val newReleases = releases.filter { it.id !in existingRemoteIds }
-                            .map { it.toDomain(repo.id) }
-                        
-                        if (newReleases.isNotEmpty()) {
-                            repository.saveReleases(newReleases)
-                            
-                            val updatedRepo = repo.copy(
-                                latestVersionTag = latestVersion,
-                                latestReleaseId = latestId,
-                                hasNewUpdate = true
-                            )
-                            repository.updateRepository(updatedRepo)
-
-                            // Find best asset to download (prefer .apk)
-                            val bestAsset = latestRelease?.assets?.find { it.name.endsWith(".apk", ignoreCase = true) }
-                                ?: latestRelease?.assets?.firstOrNull()
-
-                            notificationHelper.showUpdateNotification(
-                                repo = updatedRepo,
-                                assetUrl = bestAsset?.downloadUrl,
-                                assetName = bestAsset?.name
-                            )
-                        } else {
-                            repository.updateRepository(repo.copy(latestVersionTag = latestVersion, latestReleaseId = latestId))
+                        // Purge any local releases that have been removed from GitHub
+                        val staleReleases = existingReleases.filter { it.remoteId !in fetchedRemoteIds }
+                        if (staleReleases.isNotEmpty()) {
+                            repository.deleteReleases(staleReleases)
                         }
+
+                        // Save all current remote releases (inserts new ones & updates existing ones)
+                        val domainReleases = releases.map { it.toDomain(repo.id) }
+                        repository.saveReleases(domainReleases)
+
+                        val updatedRepo = repo.copy(
+                            latestVersionTag = latestVersion,
+                            latestReleaseId = latestId,
+                            hasNewUpdate = true
+                        )
+                        repository.updateRepository(updatedRepo)
+
+                        // Find best asset to download (prefer .apk)
+                        val bestAsset = latestRelease?.assets?.find { it.name.endsWith(".apk", ignoreCase = true) }
+                            ?: latestRelease?.assets?.firstOrNull()
+
+                        notificationHelper.showUpdateNotification(
+                            repo = updatedRepo,
+                            assetUrl = bestAsset?.downloadUrl,
+                            assetName = bestAsset?.name
+                        )
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("SyncUseCase", "Error updating ${repo.repoName}", e)

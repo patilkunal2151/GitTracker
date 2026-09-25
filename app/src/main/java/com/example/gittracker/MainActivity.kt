@@ -14,13 +14,12 @@ import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldDestinationItem
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.example.gittracker.domain.model.Release
-import com.example.gittracker.domain.model.TrackedRepo
 import com.example.gittracker.ui.MainViewModel
 import com.example.gittracker.ui.ExploreViewModel
 import com.example.gittracker.ui.components.StyledSnackbarHost
@@ -325,7 +324,22 @@ fun GitTrackerApp(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isAdding by viewModel.isAdding.collectAsState()
-    val navigator = rememberListDetailPaneScaffoldNavigator<Long>()
+    val isLoadingRepositories by viewModel.isLoadingRepositories.collectAsState()
+    val releasesMap by viewModel.releasesMap.collectAsState()
+
+    val initialDestinationHistory = remember(repoId) {
+        if (repoId != null) {
+            listOf(
+                ThreePaneScaffoldDestinationItem<Long>(ListDetailPaneScaffoldRole.List),
+                ThreePaneScaffoldDestinationItem<Long>(ListDetailPaneScaffoldRole.Detail, repoId)
+            )
+        } else {
+            listOf(ThreePaneScaffoldDestinationItem<Long>(ListDetailPaneScaffoldRole.List))
+        }
+    }
+    val navigator = rememberListDetailPaneScaffoldNavigator<Long>(
+        initialDestinationHistory = initialDestinationHistory
+    )
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(resetSignal) {
@@ -343,7 +357,9 @@ fun GitTrackerApp(
                 if (repo.hasNewUpdate) {
                     viewModel.markAsRead(repo)
                 }
-                navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, repoId)
+                if (navigator.currentDestination?.contentKey != repoId) {
+                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, repoId)
+                }
                 onDeepLinkConsumed()
             }
         }
@@ -361,6 +377,8 @@ fun GitTrackerApp(
         listPane = {
             MainScreen(
                 repositories = uiState,
+                releasesMap = releasesMap,
+                isLoading = isLoadingRepositories,
                 searchResults = searchResults,
                 isSearchingRemote = isSearchingRemote,
                 showGitHubPrompt = showGitHubPrompt,

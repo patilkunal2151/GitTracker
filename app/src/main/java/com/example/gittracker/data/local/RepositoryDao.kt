@@ -36,9 +36,15 @@ interface RepositoryDao {
     @Query("SELECT * FROM releases WHERE repoId = :repoId ORDER BY createdAt DESC")
     fun getReleasesForRepository(repoId: Long): Flow<List<ReleaseEntity>>
 
+    @Query("SELECT * FROM releases ORDER BY createdAt DESC")
+    fun getAllReleases(): Flow<List<ReleaseEntity>>
+
     @Query("SELECT * FROM releases WHERE repoId = :repoId")
     suspend fun getReleasesSync(repoId: Long): List<ReleaseEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReleases(releases: List<ReleaseEntity>)
+
+    @Delete
+    suspend fun deleteReleases(releases: List<ReleaseEntity>)
 }

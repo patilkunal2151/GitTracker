@@ -48,13 +48,17 @@ class SyncRepositoriesUseCaseTest {
     }
 
     @Test
-    fun `invoke syncs repository and shows notification when new release is found`() = runTest {
+    fun `invoke syncs repository, purges stale releases and shows notification when new release is found`() = runTest {
         // Given
         val repo = TrackedRepo(id = 1, owner = "owner", repoName = "repo", latestVersionTag = "v1.0", latestReleaseId = 100)
         coEvery { repository.getRateLimitStatus() } returns null
         coEvery { repository.getAllTrackedRepositories() } returns flowOf(listOf(repo))
         
-        val githubRelease = GitHubRelease(
+        val staleRelease = Release(id = 10, repoId = 1, remoteId = 99, tagName = "v0.9-deleted", changelog = "", htmlUrl = "", createdAt = 0, isPrerelease = false, assets = emptyList())
+        val existingRelease = Release(id = 11, repoId = 1, remoteId = 100, tagName = "v1.0", changelog = "", htmlUrl = "", createdAt = 0, isPrerelease = false, assets = emptyList())
+        coEvery { repository.getReleasesSync(1) } returns listOf(staleRelease, existingRelease)
+
+        val newGithubRelease = GitHubRelease(
             id = 101, 
             tagName = "v1.1", 
             htmlUrl = "url", 
@@ -63,14 +67,24 @@ class SyncRepositoriesUseCaseTest {
             isPrerelease = false, 
             assets = emptyList()
         )
-        coEvery { apiService.getReleases("owner", "repo") } returns Response.success(listOf(githubRelease))
-        coEvery { repository.getReleasesSync(1) } returns emptyList()
+        val currentGithubRelease = GitHubRelease(
+            id = 100, 
+            tagName = "v1.0", 
+            htmlUrl = "url", 
+            body = "changelog", 
+            publishedAt = "2024-01-01T00:00:00Z", 
+            isPrerelease = false, 
+            assets = emptyList()
+        )
+        // Remote only returns 101 and 100; 99 is removed on GitHub
+        coEvery { apiService.getReleases("owner", "repo") } returns Response.success(listOf(newGithubRelease, currentGithubRelease))
 
         // When
         val result = syncUseCase()
 
         // Then
         assertEquals(SyncResult.Success, result)
+        coVerify { repository.deleteReleases(listOf(staleRelease)) }
         coVerify { repository.saveReleases(any()) }
         coVerify { repository.updateRepository(match { it.hasNewUpdate && it.latestReleaseId == 101L }) }
         coVerify { notificationHelper.showUpdateNotification(any()) }

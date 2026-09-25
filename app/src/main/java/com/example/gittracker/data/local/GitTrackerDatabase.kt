@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 import com.example.gittracker.data.model.ReleaseEntity
 import com.example.gittracker.data.model.TrackedRepository
 
-@Database(entities = [TrackedRepository::class, ReleaseEntity::class], version = 14, exportSchema = false)
+@Database(entities = [TrackedRepository::class, ReleaseEntity::class], version = 15, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class GitTrackerDatabase : RoomDatabase() {
     abstract fun repositoryDao(): RepositoryDao

@@ -73,7 +73,8 @@ class NotificationHelper @Inject constructor(
         assetUrl: String? = null,
         assetName: String? = null
     ) {
-        Log.d("NotificationHelper", "Showing notification for ${repo.repoName}")
+        val displayName = repo.name.ifBlank { repo.repoName }
+        Log.d("NotificationHelper", "Showing notification for $displayName")
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("EXTRA_REPO_ID", repo.id)
@@ -85,7 +86,7 @@ class NotificationHelper @Inject constructor(
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
-            .setContentTitle("Update for ${repo.repoName}")
+            .setContentTitle("Update for $displayName")
             .setContentText("New version: ${repo.latestVersionTag}")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
@@ -118,5 +119,9 @@ class NotificationHelper @Inject constructor(
             .build()
 
         notificationManager.notify(SUMMARY_ID, summaryNotification)
+    }
+
+    fun dismissUpdateNotification(repoId: Long) {
+        notificationManager.cancel(repoId.toInt())
     }
 }

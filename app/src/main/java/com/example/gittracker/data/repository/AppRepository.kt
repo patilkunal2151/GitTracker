@@ -42,6 +42,11 @@ class AppRepository @Inject constructor(
             .map { list -> list.map { it.toDomain() } }
             .flowOn(Dispatchers.Default)
 
+    fun getAllReleases(): Flow<List<Release>> =
+        dao.getAllReleases()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
+
     suspend fun addRepository(owner: String, repoName: String, name: String = "", isPinned: Boolean = false) {
         val repoDetailsResponse = try {
             apiService.getRepoDetails(owner, repoName)
@@ -82,7 +87,8 @@ class AppRepository @Inject constructor(
             description = repoDetails?.description,
             stargazersCount = repoDetails?.stargazersCount ?: 0,
             forksCount = repoDetails?.forksCount ?: 0,
-            language = repoDetails?.language
+            language = repoDetails?.language,
+            topics = repoDetails?.topics?.joinToString(",")
         )
         val repoId = dao.insertRepository(newRepo)
         
@@ -251,6 +257,10 @@ class AppRepository @Inject constructor(
 
     suspend fun saveReleases(releases: List<Release>) {
         dao.insertReleases(releases.map { it.toEntity() })
+    }
+
+    suspend fun deleteReleases(releases: List<Release>) {
+        dao.deleteReleases(releases.map { it.toEntity() })
     }
 
     suspend fun checkAndFixMissingChangelogs(repoId: Long) {

@@ -19,5 +19,6 @@ data class TrackedRepository(
     val stargazersCount: Int = 0,
     val forksCount: Int = 0,
     val language: String? = null,
-    val readme: String? = null
+    val readme: String? = null,
+    val topics: String? = ""
 )

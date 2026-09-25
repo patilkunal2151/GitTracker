@@ -23,6 +23,9 @@ class DownloadReceiver : BroadcastReceiver() {
     @Inject
     lateinit var settingsManager: SettingsManager
 
+    @Inject
+    lateinit var notificationHelper: NotificationHelper
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -76,8 +79,9 @@ class DownloadReceiver : BroadcastReceiver() {
                             val status = cursor.getInt(statusIndex)
                             android.util.Log.d("DownloadReceiver", "Download $downloadId status: $status")
                             if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                                android.util.Log.i("DownloadReceiver", "Download successful, marking repo $repoId as read")
+                                android.util.Log.i("DownloadReceiver", "Download successful, marking repo $repoId as read and dismissing notification")
                                 markAsReadUseCase(repoId)
+                                notificationHelper.dismissUpdateNotification(repoId)
                             } else {
                                 android.util.Log.w("DownloadReceiver", "Download $downloadId failed or cancelled")
                             }

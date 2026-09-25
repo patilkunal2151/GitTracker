@@ -15,6 +15,7 @@ data class GitHubRepo(
     val language: String?,
     @SerializedName("html_url")
     val htmlUrl: String,
+    val topics: List<String>? = emptyList(),
     val owner: GitHubOwner
 )
 
