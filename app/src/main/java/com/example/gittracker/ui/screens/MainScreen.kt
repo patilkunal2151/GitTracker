@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay
 import com.example.gittracker.R
 import com.example.gittracker.domain.model.Release
 import com.example.gittracker.domain.model.TrackedRepo
+import com.example.gittracker.domain.usecase.ImportProgress
 import com.example.gittracker.ui.components.AddRepoDialog
 import com.example.gittracker.ui.SearchRepo
 import com.example.gittracker.util.PlatformUtils
@@ -66,6 +67,7 @@ fun MainScreen(
     onUpdateName: (TrackedRepo, String) -> Unit,
     onSearch: (String) -> Unit,
     onSearchGitHub: (String) -> Unit,
+    importProgress: ImportProgress? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -79,8 +81,10 @@ fun MainScreen(
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
-            delay(100) // Small delay to ensure the TextField is composed
-            searchFocusRequester.requestFocus()
+            delay(300)
+            try {
+                searchFocusRequester.requestFocus()
+            } catch (_: Exception) {}
         }
     }
     
@@ -245,7 +249,7 @@ fun MainScreen(
                 }
             } else if (isLoading) {
                 LoadingText()
-            } else if (repositories.isEmpty() && !isAdding) {
+            } else if (repositories.isEmpty() && !isAdding && (importProgress == null || importProgress.isCompleted)) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
@@ -265,12 +269,93 @@ fun MainScreen(
                     )
                 }
             } else {
+                val hasPendingRepos = repositories.any { it.latestVersionTag == "Pending" }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     state = listState,
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    if (hasPendingRepos && (importProgress == null || importProgress.isCompleted)) {
+                        item(key = "pending_repos_banner") {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Pending repositories will be imported on the next sync.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (importProgress != null && !importProgress.isCompleted) {
+                        item(key = "import_progress_banner") {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = "Importing Repositories...",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Text(
+                                            text = "${importProgress.importedCount}/${importProgress.total}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if (pinnedRepos.isNotEmpty()) {
                         item(key = "pinned_header") {
                             MainSectionHeader(title = "Pinned")
@@ -286,7 +371,7 @@ fun MainScreen(
                                 onClick = { 
                                     if (isSelectionMode) {
                                         selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
-                                    } else {
+                                    } else if (repo.latestVersionTag != "Pending") {
                                         onRepoClick(repo)
                                     }
                                 },
@@ -312,7 +397,7 @@ fun MainScreen(
                             onClick = { 
                                 if (isSelectionMode) {
                                     selectedIds = if (repo.id in selectedIds) selectedIds - repo.id else selectedIds + repo.id
-                                } else {
+                                } else if (repo.latestVersionTag != "Pending") {
                                     onRepoClick(repo)
                                 }
                             },
@@ -474,11 +559,13 @@ fun RepoActionBottomSheetContent(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        LaunchedEffect(Unit) {
-                            delay(150)
-                            try {
-                                focusRequester.requestFocus()
-                            } catch (_: Exception) {}
+                        LaunchedEffect(isRenaming) {
+                            if (isRenaming) {
+                                delay(300)
+                                try {
+                                    focusRequester.requestFocus()
+                                } catch (_: Exception) {}
+                            }
                         }
                     } else {
                         Text(
@@ -604,7 +691,7 @@ fun RepoItem(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
+                .padding(top = 13.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .combinedClickable(
                     interactionSource = interactionSource,
@@ -759,20 +846,21 @@ fun RepoItem(
         }
 
         if (repo.hasNewUpdate) {
+            val greenColor = Color(0xFF1A7F37)
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF1A7F37),
-                border = BorderStroke(1.dp, Color(0xFF1A7F37)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, greenColor),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(end = 16.dp)
             ) {
                 Text(
                     text = "Update",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    color = greenColor,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
         }

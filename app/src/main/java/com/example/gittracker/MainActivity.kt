@@ -48,6 +48,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.NavEntry
+import com.example.gittracker.domain.usecase.ImportProgress
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -95,6 +96,8 @@ fun AppNavigation(
     val mainViewModel: MainViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val exploreViewModel: ExploreViewModel = hiltViewModel()
+    
+    val importProgress by settingsViewModel.importProgress.collectAsState()
     
     var isSearching by remember { mutableStateOf(false) }
     var homeResetSignal by remember { mutableLongStateOf(0L) }
@@ -249,6 +252,7 @@ fun AppNavigation(
                                 isSearchingRemote = isSearchingRemote,
                                 showGitHubPrompt = showGitHubPrompt,
                                 resetSignal = homeResetSignal,
+                                importProgress = importProgress,
                                 onSearch = exploreViewModel::search,
                                 onSearchGitHub = exploreViewModel::searchGitHub,
                                 onShowSnackbar = { message ->
@@ -271,6 +275,7 @@ fun AppNavigation(
                                 isSearchingRemote = isSearchingRemote,
                                 showGitHubPrompt = showGitHubPrompt,
                                 resetSignal = homeResetSignal,
+                                importProgress = importProgress,
                                 onSearch = exploreViewModel::search,
                                 onSearchGitHub = exploreViewModel::searchGitHub,
                                 onShowSnackbar = { message ->
@@ -317,6 +322,7 @@ fun GitTrackerApp(
     isSearchingRemote: Boolean,
     showGitHubPrompt: Boolean,
     resetSignal: Long = 0L,
+    importProgress: ImportProgress? = null,
     onSearch: (String) -> Unit,
     onSearchGitHub: (String) -> Unit,
     onShowSnackbar: (String) -> Unit,
@@ -396,7 +402,8 @@ fun GitTrackerApp(
                 onTogglePin = { repo -> viewModel.togglePin(repo) },
                 onUpdateName = { repo, name -> viewModel.updateRepoName(repo, name) },
                 onSearch = onSearch,
-                onSearchGitHub = onSearchGitHub
+                onSearchGitHub = onSearchGitHub,
+                importProgress = importProgress
             )
         },
         detailPane = {

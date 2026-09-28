@@ -40,7 +40,7 @@ fun AddRepoDialog(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(200)
+        delay(300)
         try {
             focusRequester.requestFocus()
         } catch (_: Exception) {

@@ -30,6 +30,7 @@ class SyncRepositoriesUseCaseTest {
     fun setup() {
         mockkStatic(Log::class)
         every { Log.e(any(), any()) } returns 0
+        coEvery { apiService.getRepoDetails(any(), any()) } returns Response.success(null)
         
         syncUseCase = SyncRepositoriesUseCase(repository, apiService, notificationHelper)
     }

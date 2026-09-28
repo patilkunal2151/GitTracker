@@ -4,6 +4,7 @@ import com.example.gittracker.data.model.ExportData
 import com.example.gittracker.data.model.TrackedRepositoryExport
 import com.example.gittracker.domain.model.TrackedRepo
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,20 +26,42 @@ class RepositorySerializer @Inject constructor(
     }
 
     fun deserialize(json: String): List<TrackedRepositoryExport> {
-        val exportData = try {
-            gson.fromJson(json, ExportData::class.java)
-        } catch (e: Exception) {
-            try {
-                // Fallback for older versions or different formats
-                val oldRepos = gson.fromJson(json, Array<TrackedRepo>::class.java).toList()
-                ExportData(repositories = oldRepos.map { 
-                    TrackedRepositoryExport(it.owner, it.repoName, it.name, it.isPinned)
-                })
-            } catch (e: Exception) {
-                null
+        val list = mutableListOf<TrackedRepositoryExport>()
+        try {
+            val jsonElement = JsonParser.parseString(json)
+            val jsonArray = when {
+                jsonElement.isJsonObject && jsonElement.asJsonObject.has("repositories") -> {
+                    jsonElement.asJsonObject.getAsJsonArray("repositories")
+                }
+                jsonElement.isJsonArray -> jsonElement.asJsonArray
+                else -> null
             }
-        } ?: return emptyList()
 
-        return exportData.repositories
+            jsonArray?.forEach { element ->
+                if (element.isJsonObject) {
+                    val obj = element.asJsonObject
+                    val owner = obj.get("owner")?.asString
+                        ?: obj.get("author")?.asString
+                        ?: ""
+                    val repoName = obj.get("repoName")?.asString
+                        ?: obj.get("repo")?.asString
+                        ?: obj.get("name")?.asString
+                        ?: ""
+                    val customName = obj.get("customName")?.asString
+                        ?: obj.get("name")?.asString
+                        ?: repoName
+                    val isPinned = obj.get("isPinned")?.asBoolean
+                        ?: obj.get("pinned")?.asBoolean
+                        ?: false
+
+                    if (owner.isNotBlank() && repoName.isNotBlank()) {
+                        list.add(TrackedRepositoryExport(owner = owner, repoName = repoName, customName = customName, isPinned = isPinned))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
     }
 }

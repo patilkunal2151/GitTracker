@@ -14,8 +14,13 @@ class BootReceiver : BroadcastReceiver() {
     lateinit var scheduler: WorkManagerScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            scheduler.scheduleUpdateCheck()
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            "android.intent.action.QUICKBOOT_POWERON",
+            "com.htc.intent.action.QUICKBOOT_POWERON" -> {
+                scheduler.scheduleUpdateCheck()
+            }
         }
     }
 }

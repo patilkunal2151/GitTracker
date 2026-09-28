@@ -47,6 +47,29 @@ class AppRepository @Inject constructor(
             .map { list -> list.map { it.toDomain() } }
             .flowOn(Dispatchers.Default)
 
+    suspend fun addRepositoryOffline(owner: String, repoName: String, name: String = "", isPinned: Boolean = false): Long {
+        val existing = dao.getRepositoryByOwnerAndName(owner, repoName)
+        if (existing != null) {
+            return existing.id
+        }
+        val newRepo = TrackedRepository(
+            owner = owner,
+            repoName = repoName,
+            latestVersionTag = "Pending",
+            latestReleaseId = 0L,
+            hasNewUpdate = false,
+            name = name,
+            isPinned = isPinned,
+            reachedEndOfReleases = false,
+            description = "Pending sync...",
+            stargazersCount = 0,
+            forksCount = 0,
+            language = null,
+            topics = null
+        )
+        return dao.insertRepository(newRepo)
+    }
+
     suspend fun addRepository(owner: String, repoName: String, name: String = "", isPinned: Boolean = false) {
         val repoDetailsResponse = try {
             apiService.getRepoDetails(owner, repoName)

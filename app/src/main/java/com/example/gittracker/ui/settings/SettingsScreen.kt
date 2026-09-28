@@ -26,6 +26,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gittracker.BuildConfig
 import com.example.gittracker.R
+import kotlinx.coroutines.delay
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,22 +75,22 @@ fun SettingsScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                Surface(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                    tonalElevation = 0.dp
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 13.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                        tonalElevation = 0.dp
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
                                     text = "Automatic Update Check",
                                     style = MaterialTheme.typography.titleSmall,
@@ -100,48 +105,75 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            if (state.isSyncing) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (state.isDetour) "Quota resets in:" else "Next check in:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
+                                    border = BorderStroke(0.5.dp, (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.4f))
+                                ) {
                                     Text(
-                                        text = "Syncing",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
+                                        text = state.nextSyncCountdown ?: "Calculating...",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                     )
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    }
+
+                    if (state.isSyncing) {
+                        var dotCount by remember { mutableIntStateOf(1) }
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                delay(400)
+                                dotCount = (dotCount % 3) + 1
+                            }
+                        }
+                        val dots = ".".repeat(dotCount)
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = 16.dp)
                         ) {
-                            Text(
-                                text = if (state.isDetour) "Quota resets in:" else "Next check in:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
-                                border = BorderStroke(0.5.dp, (if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = 0.4f))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = state.nextSyncCountdown ?: "Calculating...",
+                                    text = "Syncing",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (state.isDetour) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
                                 )
+                                Box(
+                                    modifier = Modifier.width(16.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = dots,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -176,10 +208,21 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
+                        val batteryText = if (state.isBatteryOptimized) {
+                            buildAnnotatedString {
+                                append("Currently optimized. This may cause delays in update checks after a few days.")
+                            }
+                        } else {
+                            buildAnnotatedString {
+                                append("Optimization ")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                                    append("disabled")
+                                }
+                                append(". Background sync will be highly reliable.")
+                            }
+                        }
                         Text(
-                            text = if (state.isBatteryOptimized) 
-                                "Currently optimized. This may cause delays in update checks after a few days." 
-                                else "Optimization disabled. Background sync will be highly reliable.",
+                            text = batteryText,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -218,8 +261,15 @@ fun SettingsScreen(
                 )
             }
             item {
+                val exportLabel = buildAnnotatedString {
+                    append("Export ")
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                        append("(${state.trackedRepoCount})")
+                    }
+                    append(" Repositories")
+                }
                 SettingsItem(
-                    label = stringResource(R.string.export_data),
+                    label = exportLabel,
                     description = stringResource(R.string.export_description),
                     onClick = onExportClick
                 )
@@ -390,6 +440,21 @@ fun OutlinedSwitch(
 @Composable
 fun SettingsItem(
     label: String, 
+    description: String, 
+    onClick: () -> Unit,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    SettingsItem(
+        label = buildAnnotatedString { append(label) },
+        description = description,
+        onClick = onClick,
+        trailing = trailing
+    )
+}
+
+@Composable
+fun SettingsItem(
+    label: AnnotatedString, 
     description: String, 
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null

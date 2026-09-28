@@ -11,6 +11,7 @@ class ExportRepositoriesUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(): String {
         val repos = repository.getAllTrackedRepositories().first()
-        return serializer.serialize(repos)
+        val userRepos = repos.filter { !(it.owner.equals("patilkunal2151", ignoreCase = true) && it.repoName.equals("GitTracker", ignoreCase = true)) }
+        return serializer.serialize(userRepos)
     }
 }

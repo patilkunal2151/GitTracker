@@ -18,8 +18,8 @@ android {
         applicationId = "com.example.gittracker"
         minSdk = 30
         targetSdk = 37
-        versionCode = 11
-        versionName = "2.4"
+        versionCode = 12
+        versionName = "2.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resConfigs("en")
